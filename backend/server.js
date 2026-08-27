@@ -1,4 +1,8 @@
 const express = require("express")
+const helmet = require("helmet")
+const morgan = require("morgan")
+const rateLimit = require("express-rate-limit")
+const mongoSanitize = require("express-mongo-sanitize")
 const dotenv = require("dotenv")
 const cors = require("cors")
 const connectDB = require("./config/db")
@@ -13,7 +17,15 @@ const notificationRoutes = require("./routes/notificationRoutes")
 
 dotenv.config()
 const app = express()
-
+app.use(helmet())
+app.use(morgan("common"))
+const limiter = rateLimit(
+    {
+        windowMs: 15 * 60 * 1000, // 15 minutes
+        max: 100 // limit each IP to 100 requests per windowMs
+    }
+);
+app.use(limiter)
 app.use(cors())
 app.use(express.json())
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
