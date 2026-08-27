@@ -17,28 +17,50 @@ const notificationRoutes = require("./routes/notificationRoutes")
 
 dotenv.config()
 const app = express()
+
+// CORS must come first so every response — including rate-limit
+// rejections and errors — carries the Access-Control-Allow-Origin header.
+const allowedOrigins = [
+    "http://localhost:5173",
+    process.env.FRONTEND_URL, // set this on Render to your deployed frontend URL
+].filter(Boolean);
+
+app.use(cors({
+    origin: allowedOrigins,
+    credentials: true
+}));
+
 app.use(helmet())
 app.use(morgan("common"))
-const limiter = rateLimit(
-    {
-        windowMs: 15 * 60 * 1000, // 15 minutes
-        max: 100 // limit each IP to 100 requests per windowMs
-    }
-);
-app.use(limiter)
-app.use(cors())
+
+// Strict limiter for auth routes — brute-force protection
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Generous limiter for everything else — needs to tolerate polling
+// (e.g. NotificationBell fetching every 30-60s per user)
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 app.use(express.json())
+app.use(mongoSanitize())
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 connectDB()
 
 
-
 //  routes
-app.use("/api/auth", authRoutes);
-app.use("/api/departments", departmentRoutes);
-app.use("/api/complain",complainRoutes)
-app.use("/uploads", express.static("uploads"));
-app.use("/api/notifications", notificationRoutes);
+app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/departments", generalLimiter, departmentRoutes);
+app.use("/api/complain", generalLimiter, complainRoutes)
+app.use("/api/notifications", generalLimiter, notificationRoutes);
 
 app.get("/",(req,res)=>{
     res.send("UCMS website is running")

@@ -48,7 +48,7 @@ export default function StaffDashboard() {
 
   useEffect(() => {
     api
-      .get("/complain")
+   .get("/api/complain")
       .then(({ data }) => setComplaints(data.complaints))
       .catch((err) => setError(err.response?.data?.message || "Could not load complaints"))
       .finally(() => setLoading(false));
@@ -59,7 +59,7 @@ export default function StaffDashboard() {
 
     setInsightsLoading(true);
     api
-      .get("/complain/insights")
+      .get("/api/complain/insights")
       .then(({ data }) => setInsights(data.insights))
       .catch(() => setInsights(null))
       .finally(() => setInsightsLoading(false));

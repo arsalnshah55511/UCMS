@@ -23,7 +23,7 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     api
-      .get("/complain")
+      .get("/api/complain")
       .then(({ data }) => setComplaints(data.complaints))
       .catch((err) => setError(err.response?.data?.message || "Could not load complaints"))
       .finally(() => setLoading(false));

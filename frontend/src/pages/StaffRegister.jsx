@@ -31,7 +31,7 @@ export default function StaffRegister() {
     setSubmitting(true);
 
     try {
-      await api.post("/auth/staff", form);
+      await api.post("/api/auth/staff", form);
 
       setSuccess(true);
     } catch (err) {

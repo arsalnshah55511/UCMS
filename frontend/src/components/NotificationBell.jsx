@@ -22,20 +22,33 @@ export default function NotificationBell() {
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-  const loadNotifications = () => {
-    api
-      .get("/notifications")
-      .then(({ data }) => setNotifications(data.notifications))
-      .catch(() => setNotifications([]))
-      .finally(() => setLoading(false));
-  };
-
   useEffect(() => {
+    let cancelled = false;
+
+    const loadNotifications = () => {
+      api
+        .get("/api/notifications")
+        .then(({ data }) => {
+          if (!cancelled) setNotifications(data.notifications);
+        })
+        .catch(() => {
+          if (!cancelled) setNotifications([]);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    };
+
     loadNotifications();
 
-    // Poll every 30 seconds so new notifications show up without a page reload
-    const interval = setInterval(loadNotifications, 30000);
-    return () => clearInterval(interval);
+    // Poll every 60 seconds so new notifications show up without a page reload.
+    // (Bumped from 30s to ease pressure on the rate limiter / free-tier backend.)
+    const interval = setInterval(loadNotifications, 60000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
@@ -51,7 +64,7 @@ export default function NotificationBell() {
   const handleNotificationClick = async (notification) => {
     if (!notification.isRead) {
       try {
-        await api.put(`/notifications/${notification._id}/read`);
+        await api.put(`/api/notifications/${notification._id}/read`);
         setNotifications((prev) =>
           prev.map((n) =>
             n._id === notification._id ? { ...n, isRead: true } : n

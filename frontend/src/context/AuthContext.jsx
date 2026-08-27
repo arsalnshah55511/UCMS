@@ -22,7 +22,7 @@ useEffect(()=>{
         return
     }
     api
-      .get("/auth/me")
+      .get("/api/auth/me")
       .then(({ data }) => {
         setUser(data.user);
         localStorage.setItem("ucms_user", JSON.stringify(data.user));
@@ -37,7 +37,7 @@ useEffect(()=>{
 
 
  const login = async (email, password) => {
-    const { data } = await api.post("/auth/login", { email, password });
+    const { data } = await api.post("/api/auth/login", { email, password });
     localStorage.setItem("ucms_token", data.token);
     localStorage.setItem("ucms_user", JSON.stringify(data.user));
     setUser(data.user);
@@ -45,7 +45,7 @@ useEffect(()=>{
   };
 
    const register = async (payload) => {
-    const { data } = await api.post("/auth/register", payload);
+     const { data } = await api.post("/api/auth/register", payload);
     localStorage.setItem("ucms_token", data.token);
     localStorage.setItem("ucms_user", JSON.stringify(data.user));
     setUser(data.user);

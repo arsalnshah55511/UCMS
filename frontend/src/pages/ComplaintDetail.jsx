@@ -41,7 +41,7 @@ export default function ComplaintDetail() {
   const load = () => {
     setLoading(true);
     api
-      .get(`/complain/${id}`)
+      .get(`/api/complain/${id}`)
       .then(({ data }) => {
         setComplaint(data.complaint);
         setNextStatus(data.complaint.status);
@@ -58,7 +58,7 @@ export default function ComplaintDetail() {
     setSaveError("");
     setSaving(true);
     try {
-      const { data } = await api.put(`/complain/${id}/status`, {
+      const { data } = await api.put(`/api/complain/${id}/status`, {
         status: nextStatus,
         note,
       });
@@ -76,7 +76,7 @@ export default function ComplaintDetail() {
     setReassignError("");
     setReassigning(true);
     try {
-      const { data } = await api.put(`/complain/${id}/department`, {
+      const { data } = await api.put(`/api/complain/${id}/department`, {
         department: nextDepartment,
       });
       setComplaint(data.complaint);

@@ -31,7 +31,7 @@ export default function NewComplaint() {
 
       if (image) payload.append("image", image);
 
-      const { data } = await api.post("/complain", payload, {
+      const { data } = await api.post("/api/complain", payload, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
