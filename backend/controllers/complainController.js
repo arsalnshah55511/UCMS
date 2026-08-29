@@ -9,6 +9,7 @@ const {
   DEPARTMENT_HANDLER_ROLE,
   COMPLAINT_STATUS,
 } = require("../config/roles")
+const Feedback = require("../models/Feedback")
 
 /**
  * Builds the MongoDB filter that scopes which complaints a given user
@@ -239,6 +240,88 @@ const getInsights = asyncHandler(async (req, res) => {
     });
 
 });
+const submitFeedback = asyncHandler(async (req, res) => {
+ 
+    const { rating, comment } = req.body;
+ 
+    if (!rating || rating < 1 || rating > 5) {
+        res.status(400);
+        throw new Error("Rating must be a number between 1 and 5");
+    }
+ 
+    const complaint = await Complaint.findById(req.params.id);
+ 
+    if (!complaint) {
+        res.status(404);
+        throw new Error("Complaint not found");
+    }
+ 
+    const isOwner = complaint.submittedBy.toString() === req.user._id.toString();
+ 
+    if (!isOwner) {
+        res.status(403);
+        throw new Error("Only the complaint's submitter can leave feedback");
+    }
+ 
+    if (complaint.status !== COMPLAINT_STATUS.RESOLVED) {
+        res.status(400);
+        throw new Error("Feedback can only be submitted once a complaint is Resolved");
+    }
+ 
+    const existing = await Feedback.findOne({ complaint: complaint._id });
+ 
+    if (existing) {
+        res.status(400);
+        throw new Error("Feedback has already been submitted for this complaint");
+    }
+ 
+    const feedback = await Feedback.create({
+        complaint: complaint._id,
+        submittedBy: req.user._id,
+        rating,
+        comment: comment || "",
+    });
+ 
+    res.status(201).json({
+        success: true,
+        feedback
+    });
+ 
+});
+ 
+/**
+ * @desc    Retrieve the feedback left on a complaint, if any.
+ * @route   GET /api/complaints/:id/feedback
+ * @access  Private (submitter, same-department staff, or VC — same visibility
+ *          rule as viewing the complaint itself)
+ */
+const getFeedback = asyncHandler(async (req, res) => {
+ 
+    const complaint = await Complaint.findById(req.params.id);
+ 
+    if (!complaint) {
+        res.status(404);
+        throw new Error("Complaint not found");
+    }
+ 
+    const isOwner = complaint.submittedBy.toString() === req.user._id.toString();
+    const isVC = req.user.role === ROLES.VC;
+    const isSameDepartment = complaint.department === req.user.department;
+ 
+    if (!isOwner && !isVC && !isSameDepartment) {
+        res.status(403);
+        throw new Error("Not authorized to view feedback for this complaint");
+    }
+ 
+    const feedback = await Feedback.findOne({ complaint: complaint._id });
+ 
+    res.json({
+        success: true,
+        feedback // null if none submitted yet — the frontend should handle this
+    });
+ 
+});
+ 
 
 
 module.exports = {
@@ -253,6 +336,9 @@ module.exports = {
 
     reassignDepartment,
 
-    getInsights
+    getInsights,
+    submitFeedback,
+    getFeedback
 
+    
 };

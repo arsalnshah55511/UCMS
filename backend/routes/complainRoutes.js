@@ -10,6 +10,8 @@ const {
   updateComplaintStatus,
   reassignDepartment,
   getInsights,
+  submitFeedback,
+  getFeedback,
 } = require("../controllers/complainController");
 
  const upload = require("../middleware/uploads")
@@ -51,6 +53,25 @@ router.put(
     protect,
     authorize(ROLES.VC),
     reassignDepartment
+);
+
+// Only the original submitter (student/faculty) can leave feedback —
+// the controller additionally checks that they own this specific complaint
+// and that it's Resolved.
+router.post(
+    "/:id/feedback",
+    protect,
+    authorize(ROLES.STUDENT, ROLES.FACULTY),
+    submitFeedback
+);
+
+// No role restriction here — the controller itself checks that the
+// requester is the submitter, same-department staff, or VC, same as
+// getComplaintById above.
+router.get(
+    "/:id/feedback",
+    protect,
+    getFeedback
 );
 
 module.exports = router;
