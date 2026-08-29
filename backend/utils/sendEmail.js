@@ -31,6 +31,10 @@ async function sendEmail({ to, subject, html }) {
             user: SMTP_USER,
             pass: SMTP_PASS,
         },
+        // Render (and some other hosts) don't support outbound IPv6, but
+        // smtp.gmail.com resolves to an IPv6 address first on some
+        // networks, causing ENETUNREACH. Forcing IPv4 avoids that.
+        family: 4,
     });
 
     await transporter.sendMail({
