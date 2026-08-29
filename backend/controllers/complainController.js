@@ -321,7 +321,68 @@ const getFeedback = asyncHandler(async (req, res) => {
     });
  
 });
- 
+
+/**
+ * @desc    Reopen a Resolved complaint that the submitter isn't satisfied
+ *          with, instead of forcing them to submit a fresh duplicate.
+ *          Requires a reason, and resets the complaint to Pending so it
+ *          re-enters the department's active queue.
+ * @route   PUT /api/complaints/:id/reopen
+ * @access  Private (must be the complaint's original submitter)
+ */
+const reopenComplaint = asyncHandler(async (req, res) => {
+
+    const { reason } = req.body;
+
+    if (!reason || !reason.trim()) {
+        res.status(400);
+        throw new Error("A reason is required to reopen a complaint");
+    }
+
+    const complaint = await Complaint.findById(req.params.id);
+
+    if (!complaint) {
+        res.status(404);
+        throw new Error("Complaint not found");
+    }
+
+    const isOwner = complaint.submittedBy.toString() === req.user._id.toString();
+
+    if (!isOwner) {
+        res.status(403);
+        throw new Error("Only the complaint's submitter can reopen it");
+    }
+
+    if (complaint.status !== COMPLAINT_STATUS.RESOLVED) {
+        res.status(400);
+        throw new Error("Only a Resolved complaint can be reopened");
+    }
+
+    complaint.status = COMPLAINT_STATUS.PENDING;
+    complaint.reopenCount = (complaint.reopenCount || 0) + 1;
+
+    complaint.history.push({
+        status: COMPLAINT_STATUS.PENDING,
+        note: `Reopened by submitter — reason: ${reason.trim()}`,
+        changedBy: req.user._id
+    });
+
+    await complaint.save();
+
+    // Note: unlike updateComplaintStatus, this doesn't create a Notification
+    // for department staff — your Notification model only supports a single
+    // `user` recipient, and there's no existing mechanism in this codebase
+    // for notifying "everyone in a department." If you want staff to be
+    // alerted when a complaint reopens, that would need either an
+    // assignedTo value being reliably set elsewhere first, or a broadcast
+    // pattern (one Notification per department staff member).
+
+    res.json({
+        success: true,
+        complaint
+    });
+
+});
 
 
 module.exports = {
@@ -338,7 +399,8 @@ module.exports = {
 
     getInsights,
     submitFeedback,
-    getFeedback
+    getFeedback,
+    reopenComplaint
 
     
 };

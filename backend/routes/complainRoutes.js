@@ -12,6 +12,7 @@ const {
   getInsights,
   submitFeedback,
   getFeedback,
+  reopenComplaint,
 } = require("../controllers/complainController");
 
  const upload = require("../middleware/uploads")
@@ -72,6 +73,16 @@ router.get(
     "/:id/feedback",
     protect,
     getFeedback
+);
+
+// No role restriction beyond student/faculty — the controller checks that
+// the requester actually owns this specific complaint and that it's
+// currently Resolved.
+router.put(
+    "/:id/reopen",
+    protect,
+    authorize(ROLES.STUDENT, ROLES.FACULTY),
+    reopenComplaint
 );
 
 module.exports = router;

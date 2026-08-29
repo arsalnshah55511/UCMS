@@ -96,6 +96,13 @@ const complaintSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // How many times the submitter has reopened this complaint after it
+    // was marked Resolved. Useful later for flagging complaints that keep
+    // bouncing back as needing closer attention.
+    reopenCount: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );
