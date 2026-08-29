@@ -3,11 +3,13 @@ const Complaint  = require("../models/Complain")
 const Notification = require("../models/Notification")
 const {analyzeComplaint} = require("../utils/spellCorrector")
 const {generateInsights} = require("../utils/insights")
+const {findSimilarComplaints} = require("../utils/Similarity")
 const {
      ROLES,
   DEPARTMENT_LIST,
   DEPARTMENT_HANDLER_ROLE,
   COMPLAINT_STATUS,
+  COMPLAINT_STATUS_LIST,
 } = require("../config/roles")
 const Feedback = require("../models/Feedback")
 
@@ -77,6 +79,27 @@ const createComplaint = asyncHandler(async (req, res) => {
         }]
     });
 
+    // Flag likely duplicate/recurring complaints for staff — compares
+    // against other open complaints in the same department, any
+    // submitter, from the last 90 days. This never changes anything the
+    // submitting student sees; it only shows up in the staff queue.
+    const similar = await findSimilarComplaints(
+        `${title} ${aiResult.correctedText}`,
+        aiResult.department,
+        Complaint,
+        complaint._id
+    );
+
+    if (similar.length > 0) {
+        complaint.relatedComplaints = similar.map((s) => s.complaint._id);
+        await complaint.save();
+
+        await Complaint.updateMany(
+            { _id: { $in: similar.map((s) => s.complaint._id) } },
+            { $addToSet: { relatedComplaints: complaint._id } }
+        );
+    }
+
     res.status(201).json({
         success: true,
         complaint
@@ -144,18 +167,18 @@ const updateComplaintStatus = asyncHandler(async (req, res) => {
 
     complaint.status = req.body.status;
 
-    // If staff is marking this Resolved and left a note, save it to the
-    // dedicated resolutionNote field so it can be shown prominently to the
-    // submitter (separate from the general history log). Optional — not
-    // required to resolve a complaint.
     if (req.body.status === COMPLAINT_STATUS.RESOLVED && req.body.note?.trim()) {
         complaint.resolutionNote = req.body.note.trim();
     }
 
     complaint.history.push({
+
         status: req.body.status,
+
         note: req.body.note || "",
+
         changedBy: req.user._id
+
     });
 
     await complaint.save();
@@ -169,8 +192,11 @@ const updateComplaintStatus = asyncHandler(async (req, res) => {
     });
 
     res.json({
+
         success: true,
+
         complaint
+
     });
 
 });
@@ -218,6 +244,118 @@ const reassignDepartment = asyncHandler(async (req, res) => {
     res.json({
         success: true,
         complaint
+    });
+
+});
+
+/**
+ * @desc    Update the status of multiple complaints in one request.
+ *          Complaints outside the caller's department are silently
+ *          skipped (rather than failing the whole batch) so a mixed
+ *          selection still applies to whatever the staff member is
+ *          actually allowed to touch.
+ * @route   PUT /api/complaints/bulk/status
+ * @access  Private (hod, admin_office, provost, vc)
+ */
+const bulkUpdateStatus = asyncHandler(async (req, res) => {
+
+    const { ids, status, note } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+        res.status(400);
+        throw new Error("Please provide at least one complaint id");
+    }
+
+    if (!COMPLAINT_STATUS_LIST.includes(status)) {
+        res.status(400);
+        throw new Error(`Status must be one of: ${COMPLAINT_STATUS_LIST.join(", ")}`);
+    }
+
+    const complaints = await Complaint.find({ _id: { $in: ids } });
+
+    const updatable = req.user.role === ROLES.VC
+        ? complaints
+        : complaints.filter((c) => c.department === req.user.department);
+
+    for (const complaint of updatable) {
+
+        complaint.status = status;
+
+        if (status === COMPLAINT_STATUS.RESOLVED && note?.trim()) {
+            complaint.resolutionNote = note.trim();
+        }
+
+        complaint.history.push({
+            status,
+            note: note || "",
+            changedBy: req.user._id,
+        });
+
+        await complaint.save();
+
+        await Notification.create({
+            user: complaint.submittedBy,
+            complaint: complaint._id,
+            message: `Your complaint "${complaint.title}" is now ${complaint.status}.`,
+            type: "status_update",
+        });
+    }
+
+    res.json({
+        success: true,
+        updatedCount: updatable.length,
+        skippedCount: complaints.length - updatable.length,
+        notFoundCount: ids.length - complaints.length,
+    });
+
+});
+
+/**
+ * @desc    Reassign multiple complaints to a different department at once.
+ * @route   PUT /api/complaints/bulk/department
+ * @access  Private (VC only)
+ */
+const bulkReassignDepartment = asyncHandler(async (req, res) => {
+
+    const { ids, department } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+        res.status(400);
+        throw new Error("Please provide at least one complaint id");
+    }
+
+    if (!DEPARTMENT_LIST.includes(department)) {
+        res.status(400);
+        throw new Error(`Department must be one of: ${DEPARTMENT_LIST.join(", ")}`);
+    }
+
+    const complaints = await Complaint.find({ _id: { $in: ids } });
+
+    let updatedCount = 0;
+
+    for (const complaint of complaints) {
+
+        if (complaint.department === department) continue;
+
+        const previousDepartment = complaint.department;
+        complaint.department = department;
+        complaint.routingSource = "manual";
+
+        complaint.history.push({
+            status: complaint.status,
+            note: `Reassigned from ${previousDepartment} to ${department}`,
+            changedBy: req.user._id,
+        });
+
+        await complaint.save();
+        updatedCount++;
+    }
+
+    res.json({
+        success: true,
+        updatedCount,
+        skippedCount: complaints.length - updatedCount,
+        notFoundCount: ids.length - complaints.length,
     });
 
 });
@@ -370,7 +508,13 @@ const reopenComplaint = asyncHandler(async (req, res) => {
 
     await complaint.save();
 
-   
+    // Note: unlike updateComplaintStatus, this doesn't create a Notification
+    // for department staff — your Notification model only supports a single
+    // `user` recipient, and there's no existing mechanism in this codebase
+    // for notifying "everyone in a department." If you want staff to be
+    // alerted when a complaint reopens, that would need either an
+    // assignedTo value being reliably set elsewhere first, or a broadcast
+    // pattern (one Notification per department staff member).
 
     res.json({
         success: true,
@@ -391,6 +535,9 @@ module.exports = {
     updateComplaintStatus,
 
     reassignDepartment,
+
+    bulkUpdateStatus,
+    bulkReassignDepartment,
 
     getInsights,
     submitFeedback,

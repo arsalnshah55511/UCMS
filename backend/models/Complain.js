@@ -96,12 +96,23 @@ const complaintSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    
-    
+    // How many times the submitter has reopened this complaint after it
+    // was marked Resolved. Useful later for flagging complaints that keep
+    // bouncing back as needing closer attention.
     reopenCount: {
       type: Number,
       default: 0,
     },
+    // Other complaints (any submitter, same department) that the AI
+    // judged textually similar to this one at submission time — used to
+    // flag likely duplicate/recurring issues for staff. Populated by
+    // utils/similarity.js and never surfaced to the submitter.
+    relatedComplaints: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Complaint",
+      },
+    ],
   },
   { timestamps: true }
 );
