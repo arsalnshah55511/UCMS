@@ -8,6 +8,8 @@ import Navbar from "./components/Navbar";
 import Login from "./pages/Login"
 import Register from "./pages/Register";
 import StaffRegister from "./pages/StaffRegister";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 // import Temp from "./pages/Temp";
 
 
@@ -31,6 +33,8 @@ function App() {
 <Route path="/register" element={<Register />} />
 
 <Route path="/staff-register" element={<StaffRegister />} />
+<Route path="/forgot-password" element={<ForgotPassword />} />
+<Route path="/reset-password/:token" element={<ResetPassword />} />
 {/* <Route path="/temp" element={<Temp />} /> */}
 
  <Route

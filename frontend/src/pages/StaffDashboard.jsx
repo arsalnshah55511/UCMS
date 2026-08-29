@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import ComplaintCard from "../components/ComplaintCard";
 import Spinner from "../components/Spinner";
 import EmptyState from "../components/EmptyState";
-import { COMPLAINT_STATUS_LIST } from "../utils/constants";
+import { COMPLAINT_STATUS_LIST, DEPARTMENTS } from "../utils/constants";
 
 const STATUS_ACCENT = {
   Pending: "text-amber-600",
@@ -42,17 +42,30 @@ export default function StaffDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [onlySimilar, setOnlySimilar] = useState(false);
 
   const [insights, setInsights] = useState(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
 
-  useEffect(() => {
+  // Bulk-selection state
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkStatus, setBulkStatus] = useState(COMPLAINT_STATUS_LIST[0]);
+  const [bulkNote, setBulkNote] = useState("");
+  const [bulkDepartment, setBulkDepartment] = useState(DEPARTMENTS[0]);
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkError, setBulkError] = useState("");
+  const [bulkMessage, setBulkMessage] = useState("");
+
+  const loadComplaints = () => {
+    setLoading(true);
     api
-   .get("/api/complain")
+      .get("/api/complain")
       .then(({ data }) => setComplaints(data.complaints))
       .catch((err) => setError(err.response?.data?.message || "Could not load complaints"))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(loadComplaints, []);
 
   useEffect(() => {
     if (user.role !== "vc") return;
@@ -65,12 +78,21 @@ export default function StaffDashboard() {
       .finally(() => setInsightsLoading(false));
   }, [user.role]);
 
-  const filtered = useMemo(
-    () =>
-      statusFilter === "All"
-        ? complaints
-        : complaints.filter((c) => c.status === statusFilter),
-    [complaints, statusFilter]
+  const filtered = useMemo(() => {
+    let list = statusFilter === "All"
+      ? complaints
+      : complaints.filter((c) => c.status === statusFilter);
+
+    if (onlySimilar) {
+      list = list.filter((c) => (c.relatedComplaints?.length || 0) > 0);
+    }
+
+    return list;
+  }, [complaints, statusFilter, onlySimilar]);
+
+  const flaggedCount = useMemo(
+    () => complaints.filter((c) => (c.relatedComplaints?.length || 0) > 0).length,
+    [complaints]
   );
 
   const counts = useMemo(() => {
@@ -85,6 +107,87 @@ export default function StaffDashboard() {
 
     return c;
   }, [complaints]);
+
+  // Selection is cleared whenever the filter changes, so staff never end
+  // up applying a bulk action to complaints they can no longer see.
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setBulkError("");
+    setBulkMessage("");
+  }, [statusFilter, onlySimilar]);
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((c) => selectedIds.has(c._id));
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      if (allFilteredSelected) {
+        return new Set();
+      }
+      return new Set(filtered.map((c) => c._id));
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const handleBulkStatusUpdate = async (e) => {
+    e.preventDefault();
+    setBulkError("");
+    setBulkMessage("");
+    setBulkSaving(true);
+    try {
+      const { data } = await api.put("/api/complain/bulk/status", {
+        ids: Array.from(selectedIds),
+        status: bulkStatus,
+        note: bulkNote,
+      });
+      setBulkMessage(
+        `Updated ${data.updatedCount} complaint${data.updatedCount === 1 ? "" : "s"} to ${bulkStatus}` +
+          (data.skippedCount ? ` (${data.skippedCount} skipped — outside your department)` : "")
+      );
+      setBulkNote("");
+      clearSelection();
+      loadComplaints();
+    } catch (err) {
+      setBulkError(err.response?.data?.message || "Could not update selected complaints");
+    } finally {
+      setBulkSaving(false);
+    }
+  };
+
+  const handleBulkReassign = async (e) => {
+    e.preventDefault();
+    setBulkError("");
+    setBulkMessage("");
+    setBulkSaving(true);
+    try {
+      const { data } = await api.put("/api/complain/bulk/department", {
+        ids: Array.from(selectedIds),
+        department: bulkDepartment,
+      });
+      setBulkMessage(
+        `Reassigned ${data.updatedCount} complaint${data.updatedCount === 1 ? "" : "s"} to ${bulkDepartment}` +
+          (data.skippedCount ? ` (${data.skippedCount} already there)` : "")
+      );
+      clearSelection();
+      loadComplaints();
+    } catch (err) {
+      setBulkError(err.response?.data?.message || "Could not reassign selected complaints");
+    } finally {
+      setBulkSaving(false);
+    }
+  };
 
   const scopeLabel = user.role === "vc" ? "All Departments" : user.department;
 
@@ -174,7 +277,7 @@ export default function StaffDashboard() {
         </div>
 
         {/* Filter pills */}
-        <div className="mb-6 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
           {["All", ...COMPLAINT_STATUS_LIST].map((s) => (
             <button
               key={s}
@@ -188,6 +291,22 @@ export default function StaffDashboard() {
               {s}
             </button>
           ))}
+
+          {flaggedCount > 0 && (
+            <button
+              onClick={() => setOnlySimilar((prev) => !prev)}
+              className={`ml-auto flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium transition duration-200 ${
+                onlySimilar
+                  ? "bg-amber-500 text-white shadow-sm"
+                  : "text-amber-700 hover:bg-amber-50"
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+              {onlySimilar ? "Showing flagged only" : `${flaggedCount} flagged as similar`}
+            </button>
+          )}
         </div>
 
         {loading && <Spinner label="Loading queue" />}
@@ -205,9 +324,125 @@ export default function StaffDashboard() {
           />
         )}
 
+        {!loading && !error && filtered.length > 0 && (
+          <div className="mb-3 flex items-center gap-2 px-1">
+            <input
+              type="checkbox"
+              checked={allFilteredSelected}
+              onChange={toggleSelectAll}
+              className="h-4 w-4 cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm text-slate-500">
+              {selectedIds.size > 0
+                ? `${selectedIds.size} selected`
+                : `Select all ${filtered.length} shown`}
+            </span>
+          </div>
+        )}
+
+        {/* Bulk action toolbar — appears once at least one complaint is selected */}
+        {selectedIds.size > 0 && (
+          <div className="mb-6 space-y-4 rounded-2xl border border-blue-200 bg-blue-50/60 p-5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="font-serif text-lg font-semibold text-slate-900">
+                Bulk Actions — {selectedIds.size} selected
+              </h2>
+              <button
+                onClick={clearSelection}
+                className="text-sm font-medium text-slate-500 hover:text-slate-700"
+              >
+                Clear selection
+              </button>
+            </div>
+
+            {bulkError && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-rose-700">
+                {bulkError}
+              </div>
+            )}
+
+            {bulkMessage && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-emerald-700">
+                {bulkMessage}
+              </div>
+            )}
+
+            {/* Bulk status update */}
+            <form onSubmit={handleBulkStatusUpdate} className="space-y-3 rounded-xl bg-white p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Update Status
+              </p>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <select
+                  value={bulkStatus}
+                  onChange={(e) => setBulkStatus(e.target.value)}
+                  className="rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                >
+                  {COMPLAINT_STATUS_LIST.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="submit"
+                  disabled={bulkSaving}
+                  className="rounded-xl bg-slate-900 py-2 font-medium text-white transition hover:bg-amber-600 disabled:bg-slate-300"
+                >
+                  {bulkSaving ? "Applying..." : `Apply to ${selectedIds.size}`}
+                </button>
+              </div>
+              <textarea
+                rows={2}
+                placeholder="Add a note (optional)"
+                value={bulkNote}
+                onChange={(e) => setBulkNote(e.target.value)}
+                className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </form>
+
+            {/* Bulk department reassignment — VC only, same restriction as the single-complaint version */}
+            {user.role === "vc" && (
+              <form onSubmit={handleBulkReassign} className="space-y-3 rounded-xl bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Reassign Department
+                </p>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <select
+                    value={bulkDepartment}
+                    onChange={(e) => setBulkDepartment(e.target.value)}
+                    className="rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  >
+                    {DEPARTMENTS.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="submit"
+                    disabled={bulkSaving}
+                    className="rounded-xl bg-amber-600 py-2 font-medium text-white transition hover:bg-amber-700 disabled:bg-slate-300"
+                  >
+                    {bulkSaving ? "Reassigning..." : `Reassign ${selectedIds.size}`}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
+
         <div className="flex flex-col gap-3">
           {filtered.map((c) => (
-            <ComplaintCard key={c._id} complaint={c} showSubmitter />
+            <ComplaintCard
+              key={c._id}
+              complaint={c}
+              showSubmitter
+              showSimilarFlag
+              selectable
+              selected={selectedIds.has(c._id)}
+              onToggleSelect={toggleSelect}
+            />
           ))}
         </div>
       </div>

@@ -207,6 +207,11 @@ const forgotPassword = asyncHandler(async (req, res) => {
       `,
     });
   } catch (err) {
+    // Log the real cause (wrong credentials, blocked port, etc.) — the
+    // response to the client stays generic on purpose, but we need this
+    // in the server logs to actually diagnose SMTP failures.
+    console.error("[forgotPassword] sendEmail failed:", err);
+
     // Don't leave the account in a state where the token exists but the
     // user never received a way to use it.
     user.resetPasswordToken = null;
