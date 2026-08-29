@@ -6,6 +6,8 @@ const {
   getMe,
   updateMe,
   changePassword,
+  forgotPassword,
+  resetPassword,
 } = require("../controllers/authController");
 const { protect } = require("../middleware/auth");
  const { authorize } = require("../middleware/roleCheck");
@@ -16,6 +18,9 @@ router.post("/register", registerUser);
 router.post("/login", loginUser);
 //  router.post("/staff", protect, authorize("vc"), createStaffUser);
 router.post("/staff", createStaffUser);
+
+router.post("/forgot-password", forgotPassword);
+router.put("/reset-password/:token", resetPassword);
 
 router.get("/me", protect, getMe);
 router.put("/me", protect, updateMe);

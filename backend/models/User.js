@@ -50,6 +50,19 @@ const userSchema= new mongoose.Schema({
       type: Boolean,
       default: true,
     },
+    // Password reset — resetPasswordToken stores a HASH of the token
+    // that was emailed to the user, never the raw token itself, so a
+    // database leak alone can't be used to reset anyone's password.
+    resetPasswordToken: {
+      type: String,
+      default: null,
+      select: false,
+    },
+    resetPasswordExpire: {
+      type: Date,
+      default: null,
+      select: false,
+    },
   },
   { timestamps: true 
 })

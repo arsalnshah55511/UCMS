@@ -79,10 +79,7 @@ const createComplaint = asyncHandler(async (req, res) => {
         }]
     });
 
-    // Flag likely duplicate/recurring complaints for staff — compares
-    // against other open complaints in the same department, any
-    // submitter, from the last 90 days. This never changes anything the
-    // submitting student sees; it only shows up in the staff queue.
+    
     const similar = await findSimilarComplaints(
         `${title} ${aiResult.correctedText}`,
         aiResult.department,
