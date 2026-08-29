@@ -3,7 +3,7 @@ const Complaint  = require("../models/Complain")
 const Notification = require("../models/Notification")
 const {analyzeComplaint} = require("../utils/spellCorrector")
 const {generateInsights} = require("../utils/insights")
-const {findSimilarComplaints} = require("../utils/similarity")
+const {findSimilarComplaints} = require("../utils/Similarity")
 const {
      ROLES,
   DEPARTMENT_LIST,
