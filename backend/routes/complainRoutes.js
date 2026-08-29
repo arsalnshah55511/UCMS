@@ -9,6 +9,8 @@ const {
   getComplaintById,
   updateComplaintStatus,
   reassignDepartment,
+  bulkUpdateStatus,
+  bulkReassignDepartment,
   getInsights,
   submitFeedback,
   getFeedback,
@@ -34,6 +36,30 @@ router.get("/", protect, getComplaints);
 // IMPORTANT: this must be declared BEFORE "/:id" below, or Express will
 // try to match "insights" as a complaint ID instead of this route.
 router.get("/insights", protect, authorize(ROLES.VC), getInsights);
+
+// IMPORTANT: both bulk routes must be declared BEFORE "/:id/status" and
+// "/:id/department" below. Both pairs have the same two-segment shape
+// (e.g. "/bulk/status" vs "/:id/status"), so if "/:id/status" were matched
+// first, Express would treat "bulk" as the :id parameter and route bulk
+// requests into the single-complaint controller by mistake.
+router.put(
+    "/bulk/status",
+    protect,
+    authorize(
+        ROLES.HOD,
+        ROLES.ADMIN_OFFICE,
+        ROLES.PROVOST,
+        ROLES.VC
+    ),
+    bulkUpdateStatus
+);
+
+router.put(
+    "/bulk/department",
+    protect,
+    authorize(ROLES.VC),
+    bulkReassignDepartment
+);
 
 router.get("/:id", protect, getComplaintById);
 
