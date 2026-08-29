@@ -144,14 +144,18 @@ const updateComplaintStatus = asyncHandler(async (req, res) => {
 
     complaint.status = req.body.status;
 
+    // If staff is marking this Resolved and left a note, save it to the
+    // dedicated resolutionNote field so it can be shown prominently to the
+    // submitter (separate from the general history log). Optional — not
+    // required to resolve a complaint.
+    if (req.body.status === COMPLAINT_STATUS.RESOLVED && req.body.note?.trim()) {
+        complaint.resolutionNote = req.body.note.trim();
+    }
+
     complaint.history.push({
-
         status: req.body.status,
-
         note: req.body.note || "",
-
         changedBy: req.user._id
-
     });
 
     await complaint.save();
@@ -165,11 +169,8 @@ const updateComplaintStatus = asyncHandler(async (req, res) => {
     });
 
     res.json({
-
         success: true,
-
         complaint
-
     });
 
 });
@@ -369,13 +370,7 @@ const reopenComplaint = asyncHandler(async (req, res) => {
 
     await complaint.save();
 
-    // Note: unlike updateComplaintStatus, this doesn't create a Notification
-    // for department staff — your Notification model only supports a single
-    // `user` recipient, and there's no existing mechanism in this codebase
-    // for notifying "everyone in a department." If you want staff to be
-    // alerted when a complaint reopens, that would need either an
-    // assignedTo value being reliably set elsewhere first, or a broadcast
-    // pattern (one Notification per department staff member).
+   
 
     res.json({
         success: true,
