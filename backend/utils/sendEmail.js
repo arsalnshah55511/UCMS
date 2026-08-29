@@ -1,16 +1,6 @@
 const nodemailer = require("nodemailer");
 
-/**
- * Sends an email via SMTP using credentials from the environment.
- *
- * Requires these .env variables to actually send mail:
- *   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, EMAIL_FROM
- *
- * If they aren't set (e.g. local development without a mail provider
- * configured yet), this falls back to logging the email to the console
- * instead of throwing — so the rest of the forgot-password flow can
- * still be tested end-to-end without real SMTP credentials.
- */
+
 async function sendEmail({ to, subject, html }) {
 
     const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, EMAIL_FROM } = process.env;
