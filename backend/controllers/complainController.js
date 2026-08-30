@@ -520,6 +520,56 @@ const reopenComplaint = asyncHandler(async (req, res) => {
 
 });
 
+/**
+ * @desc    Delete a complaint. Restricted to the original submitter, and
+ *          only while the complaint is still Pending — once staff has
+ *          started working it (any status change, reassignment, etc.),
+ *          deletion is blocked so the audit trail and any staff time
+ *          already spent isn't silently erased.
+ * @route   DELETE /api/complaints/:id
+ * @access  Private (must be the complaint's original submitter)
+ */
+const deleteComplaint = asyncHandler(async (req, res) => {
+
+    const complaint = await Complaint.findById(req.params.id);
+
+    if (!complaint) {
+        res.status(404);
+        throw new Error("Complaint not found");
+    }
+
+    const isOwner = complaint.submittedBy.toString() === req.user._id.toString();
+
+    if (!isOwner) {
+        res.status(403);
+        throw new Error("Only the complaint's submitter can delete it");
+    }
+
+    if (complaint.status !== COMPLAINT_STATUS.PENDING) {
+        res.status(400);
+        throw new Error("Only a Pending complaint can be deleted");
+    }
+
+    // Clean up references so deleting this complaint doesn't leave dangling
+    // links elsewhere: pull it out of any other complaint's relatedComplaints
+    // array (Section 4.6.3's duplicate-detection linking), and remove any
+    // notifications that point to it.
+    await Complaint.updateMany(
+        { relatedComplaints: complaint._id },
+        { $pull: { relatedComplaints: complaint._id } }
+    );
+
+    await Notification.deleteMany({ complaint: complaint._id });
+
+    await complaint.deleteOne();
+
+    res.json({
+        success: true,
+        message: "Complaint deleted"
+    });
+
+});
+
 
 module.exports = {
 
@@ -539,7 +589,8 @@ module.exports = {
     getInsights,
     submitFeedback,
     getFeedback,
-    reopenComplaint
+    reopenComplaint,
+    deleteComplaint
 
     
 };

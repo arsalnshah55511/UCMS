@@ -15,6 +15,7 @@ const {
   submitFeedback,
   getFeedback,
   reopenComplaint,
+  deleteComplaint,
 } = require("../controllers/complainController");
 
  const upload = require("../middleware/uploads")
@@ -62,6 +63,16 @@ router.put(
 );
 
 router.get("/:id", protect, getComplaintById);
+
+// No role restriction beyond student/faculty — the controller checks that
+// the requester actually owns this specific complaint and that it's
+// still Pending.
+router.delete(
+    "/:id",
+    protect,
+    authorize(ROLES.STUDENT, ROLES.FACULTY),
+    deleteComplaint
+);
 
 router.put(
     "/:id/status",
