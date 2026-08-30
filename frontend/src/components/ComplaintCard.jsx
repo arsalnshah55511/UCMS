@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import StatusBadge from "./StatusBadge";
 import RoutingStamp from "./RoutingStamp";
 
+const API_ORIGIN = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "");
+
 function ticketNumber(id) {
   return `#${id.slice(-6).toUpperCase()}`;
 }
@@ -48,6 +50,15 @@ export default function ComplaintCard({
       >
         {/* Department Stamp */}
         <RoutingStamp department={complaint.department} />
+
+        {/* Attachment thumbnail — only when the complaint has an image */}
+        {complaint.image && (
+          <img
+            src={`${API_ORIGIN}${complaint.image}`}
+            alt=""
+            className="h-12 w-12 shrink-0 rounded-lg border border-gray-200 object-cover"
+          />
+        )}
 
         {/* Complaint Info */}
         <div className="flex-1 min-w-0">
