@@ -76,6 +76,11 @@ export default function ComplaintDetail() {
   const [reopening, setReopening] = useState(false);
   const [reopenError, setReopenError] = useState("");
 
+  // Delete state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
   const load = () => {
     setLoading(true);
     api
@@ -183,6 +188,20 @@ export default function ComplaintDetail() {
       setReopenError(err.response?.data?.message || "Could not reopen complaint");
     } finally {
       setReopening(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleteError("");
+    setDeleting(true);
+    try {
+      await api.delete(`/api/complain/${id}`);
+      // The complaint no longer exists, so navigate back to the list
+      // rather than trying to re-render this page.
+      navigate(isStaff ? "/staff" : "/dashboard");
+    } catch (err) {
+      setDeleteError(err.response?.data?.message || "Could not delete complaint");
+      setDeleting(false);
     }
   };
 
@@ -392,6 +411,67 @@ export default function ComplaintDetail() {
             ))}
           </ol>
         </div>
+
+        {/* Delete — only the submitter, only while still Pending */}
+        {isOwner && complaint.status === "Pending" && (
+          <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50/40 p-6 shadow-sm">
+            {!showDeleteConfirm ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-serif text-lg font-semibold text-slate-900">
+                    Submitted this by mistake?
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    You can delete this complaint while it's still Pending.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="shrink-0 rounded-xl border border-rose-300 px-4 py-2 text-sm font-medium text-rose-700 transition hover:border-rose-400 hover:bg-rose-100"
+                >
+                  Delete Complaint
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="font-serif text-lg font-semibold text-slate-900">
+                    Delete this complaint?
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    This cannot be undone.
+                  </p>
+                </div>
+
+                {deleteError && (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-rose-700">
+                    {deleteError}
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="rounded-xl bg-rose-600 px-5 py-2 font-medium text-white transition hover:bg-rose-700 disabled:bg-slate-300"
+                  >
+                    {deleting ? "Deleting..." : "Confirm Delete"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDeleteConfirm(false);
+                      setDeleteError("");
+                    }}
+                    className="rounded-xl px-5 py-2 text-sm font-medium text-slate-500 transition hover:text-slate-700"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Feedback — only relevant once the complaint is Resolved */}
         {complaint.status === "Resolved" && (
