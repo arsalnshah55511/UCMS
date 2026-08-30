@@ -1,9 +1,11 @@
+const dotenv = require("dotenv")
+dotenv.config()
+
 const express = require("express")
 const helmet = require("helmet")
 const morgan = require("morgan")
 const rateLimit = require("express-rate-limit")
 const mongoSanitize = require("express-mongo-sanitize")
-const dotenv = require("dotenv")
 const cors = require("cors")
 const connectDB = require("./config/db")
 const path = require("path")
@@ -15,7 +17,6 @@ const complainRoutes = require("./routes/complainRoutes")
 const notificationRoutes = require("./routes/notificationRoutes")
 
 
-dotenv.config()
 const app = express()
 
 // Render (and most hosting platforms) sit behind a reverse proxy, which
