@@ -41,8 +41,11 @@ export default function StaffDashboard() {
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
+   const [statusFilter, setStatusFilter] = useState("All");
   const [onlySimilar, setOnlySimilar] = useState(false);
+  // Search is only ever shown to the VC, since only the VC dashboard
+  // pulls in every department's complaints at once.
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [insights, setInsights] = useState(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
@@ -78,7 +81,7 @@ export default function StaffDashboard() {
       .finally(() => setInsightsLoading(false));
   }, [user.role]);
 
-  const filtered = useMemo(() => {
+    const filtered = useMemo(() => {
     let list = statusFilter === "All"
       ? complaints
       : complaints.filter((c) => c.status === statusFilter);
@@ -87,8 +90,18 @@ export default function StaffDashboard() {
       list = list.filter((c) => (c.relatedComplaints?.length || 0) > 0);
     }
 
+    if (user.role === "vc" && searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter((c) => {
+        const title = (c.title || "").toLowerCase();
+        const text = (c.correctedText || c.originalText || "").toLowerCase();
+        const submitter = (c.submittedBy?.name || "").toLowerCase();
+        return title.includes(q) || text.includes(q) || submitter.includes(q);
+      });
+    }
+
     return list;
-  }, [complaints, statusFilter, onlySimilar]);
+  }, [complaints, statusFilter, onlySimilar, searchQuery, user.role]);
 
   const flaggedCount = useMemo(
     () => complaints.filter((c) => (c.relatedComplaints?.length || 0) > 0).length,
@@ -275,6 +288,31 @@ export default function StaffDashboard() {
             </div>
           ))}
         </div>
+
+        {/* Filter pills */}
+        {/* Search — VC dashboard only */}
+        {user.role === "vc" && (
+          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by title, complaint text, or submitter name..."
+              className="w-full text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="shrink-0 text-xs font-medium text-slate-400 hover:text-slate-600"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Filter pills */}
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
