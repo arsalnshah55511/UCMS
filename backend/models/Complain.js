@@ -55,10 +55,12 @@ const complaintSchema = new mongoose.Schema(
       enum: DEPARTMENT_LIST,
       required: true,
     },
-    // How the department was chosen: the AI classifier, or a manual override
+    // How the department was chosen: the AI classifier (with reasonable
+    // confidence), the AI classifier despite low confidence (flagged for
+    // staff review), or a manual override
     routingSource: {
       type: String,
-      enum: ["ai", "manual"],
+      enum: ["ai", "ai-low-confidence", "manual"],
       default: "ai",
     },
     aiConfidence: {
@@ -85,11 +87,6 @@ const complaintSchema = new mongoose.Schema(
       ref: "User",
       default: null,
     },
-    relatedComplaints: [{
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "Complaint",
-  default: [],
-}],
     attachments: [attachmentSchema],
     history: [historyEntrySchema],
     resolutionNote: {
@@ -101,18 +98,19 @@ const complaintSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    
+    // How many times the submitter has reopened this complaint after it
+    // was marked Resolved.
     reopenCount: {
       type: Number,
       default: 0,
     },
-    
-    relatedComplaints: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Complaint",
-      },
-    ],
+    // Other complaints judged similar by the duplicate-detection stage
+    // (TF-IDF + cosine similarity), linked both ways.
+    relatedComplaints: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Complaint",
+      default: [],
+    }],
   },
   { timestamps: true }
 );

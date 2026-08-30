@@ -1,7 +1,7 @@
 const asyncHandler= require("express-async-handler")
 const Complaint  = require("../models/Complain")
 const Notification = require("../models/Notification")
-const {analyzeComplaint} = require("../utils/spellCorrector")
+const {analyzeComplaint, CONFIDENCE_THRESHOLD} = require("../utils/spellCorrector")
 const {generateInsights} = require("../utils/insights")
 const {findSimilarComplaints} = require("../utils/Similarity")
 const {
@@ -51,6 +51,13 @@ const createComplaint = asyncHandler(async (req, res) => {
     // AI
     const aiResult = await analyzeComplaint(title, originalText);
 
+    // The complaint still gets routed to the classifier's best guess
+    // either way — flagging only changes how confidently that routing
+    // is presented to staff, never whether the complaint gets routed at all.
+    const routingSource = aiResult.confidence < CONFIDENCE_THRESHOLD
+        ? "ai-low-confidence"
+        : "ai";
+
     // Save Complaint
     const complaint = await Complaint.create({
 
@@ -62,7 +69,7 @@ const createComplaint = asyncHandler(async (req, res) => {
 
         department: aiResult.department,
 
-        routingSource: "ai",
+        routingSource,
 
         aiConfidence: aiResult.confidence,
 
@@ -202,7 +209,8 @@ const updateComplaintStatus = asyncHandler(async (req, res) => {
  * @desc    Reassign a complaint to a different department. Used to correct
  *          a complaint that the AI classifier routed incorrectly.
  * @route   PUT /api/complaints/:id/department
- * @access  Private (VC only)
+ * @access  Private (VC always; department staff only for their own
+ *          department's low-confidence-routed complaints)
  */
 const reassignDepartment = asyncHandler(async (req, res) => {
 
@@ -218,6 +226,21 @@ const reassignDepartment = asyncHandler(async (req, res) => {
     if (!complaint) {
         res.status(404);
         throw new Error("Complaint not found");
+    }
+
+    // VC can reassign any complaint, any time. Department staff may only
+    // reassign complaints currently sitting in their own department, and
+    // only while the AI's routing confidence was below the threshold —
+    // a confidently-routed complaint isn't theirs to second-guess here.
+    if (req.user.role !== ROLES.VC) {
+        if (complaint.department !== req.user.department) {
+            res.status(403);
+            throw new Error("Not authorized to reassign complaints outside your department");
+        }
+        if (complaint.routingSource !== "ai-low-confidence") {
+            res.status(403);
+            throw new Error("Only complaints flagged for review can be reassigned by department staff");
+        }
     }
 
     const previousDepartment = complaint.department;

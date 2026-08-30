@@ -159,6 +159,16 @@ function loadSpellChecker() {
     });
 }
 
+// Below this, a classification is treated as too uncertain to trust
+// silently — the complaint still gets routed to the classifier's best
+// guess (so it isn't left unrouted), but is flagged for staff review
+// rather than treated as a confident automatic routing. Chosen as a
+// starting point given a 5-department classifier: a fully confident,
+// unambiguous prediction sits well above this, while a near-even split
+// across departments (the failure mode this guards against) sits well
+// below it.
+const CONFIDENCE_THRESHOLD = 0.4;
+
 async function analyzeComplaint(title, originalText) {
 
     if (!spellChecker) {
@@ -221,5 +231,6 @@ async function analyzeComplaint(title, originalText) {
 }
 
 module.exports = {
-    analyzeComplaint
+    analyzeComplaint,
+    CONFIDENCE_THRESHOLD
 };

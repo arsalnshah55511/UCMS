@@ -89,7 +89,15 @@ router.put(
 router.put(
     "/:id/department",
     protect,
-    authorize(ROLES.VC),
+    // VC can always reassign; the controller itself further restricts
+    // non-VC staff to only their own department's low-confidence-routed
+    // complaints — see reassignDepartment.
+    authorize(
+        ROLES.HOD,
+        ROLES.ADMIN_OFFICE,
+        ROLES.PROVOST,
+        ROLES.VC
+    ),
     reassignDepartment
 );
 

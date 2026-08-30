@@ -341,8 +341,9 @@ export default function ComplaintDetail() {
           </div>
         </div>
 
-        {/* Department reassignment (VC only) */}
-        {user.role === "vc" && (
+        {/* Department reassignment — VC always; department staff only when
+            the AI flagged this complaint's routing as low-confidence */}
+        {isStaff && (user.role === "vc" || complaint.routingSource === "ai-low-confidence") && (
           <form
             onSubmit={handleReassign}
             className="mb-6 space-y-4 rounded-2xl border border-amber-200 bg-amber-50/50 p-6 shadow-sm"
@@ -352,7 +353,9 @@ export default function ComplaintDetail() {
                 Reassign Department
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Use this if the AI routed this complaint to the wrong department.
+                {user.role === "vc"
+                  ? "Use this if the AI routed this complaint to the wrong department."
+                  : "The AI wasn't confident about this routing — reassign it if it belongs elsewhere."}
               </p>
             </div>
 
