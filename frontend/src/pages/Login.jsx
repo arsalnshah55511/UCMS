@@ -70,7 +70,7 @@ export default function Login() {
       <div className="w-full max-w-md bg-white shadow-lg rounded-xl p-8">
 
         <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">
-          Welcome Back
+          Welcome to the UCMS
         </h1>
 
         <p className="text-center text-gray-500 mb-8">

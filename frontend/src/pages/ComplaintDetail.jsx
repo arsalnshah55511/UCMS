@@ -111,6 +111,14 @@ export default function ComplaintDetail() {
   const handleStatusUpdate = async (e) => {
     e.preventDefault();
     setSaveError("");
+
+    // A resolution note is required when moving a complaint into Resolved —
+    // mirrors the backend check, so the user sees this without a round trip
+    if (nextStatus === "Resolved" && !note.trim()) {
+      setSaveError("Please explain how the complaint was resolved");
+      return;
+    }
+
     setSaving(true);
     try {
       const { data } = await api.put(`/api/complain/${id}/status`, {
@@ -222,6 +230,10 @@ export default function ComplaintDetail() {
   }
 
   const isOwner = complaint.submittedBy?._id === user._id;
+
+  // Once Resolved, only the VC can change status further — department
+  // staff rely on the student's Reopen flow instead
+  const canEditStatus = complaint.status !== "Resolved" || user.role === "vc";
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -621,50 +633,62 @@ export default function ComplaintDetail() {
           </div>
         )}
 
-        {/* Status update (staff only) */}
+        {/* Status update (staff only) — locked for non-VC once Resolved */}
         {isStaff && (
-          <form
-            onSubmit={handleStatusUpdate}
-            className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-          >
-            <h2 className="font-serif text-xl font-semibold text-slate-900">Update Status</h2>
+          canEditStatus ? (
+            <form
+              onSubmit={handleStatusUpdate}
+              className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+            >
+              <h2 className="font-serif text-xl font-semibold text-slate-900">Update Status</h2>
 
-            {saveError && (
-              <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-rose-700">
-                {saveError}
+              {saveError && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-rose-700">
+                  {saveError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <select
+                  className="rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  value={nextStatus}
+                  onChange={(e) => setNextStatus(e.target.value)}
+                >
+                  {COMPLAINT_STATUS_LIST.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-xl bg-slate-900 py-2 font-medium text-white transition hover:bg-amber-600 disabled:bg-slate-300"
+                >
+                  {saving ? "Saving..." : "Save Status"}
+                </button>
               </div>
-            )}
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <select
-                className="rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                value={nextStatus}
-                onChange={(e) => setNextStatus(e.target.value)}
-              >
-                {COMPLAINT_STATUS_LIST.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-xl bg-slate-900 py-2 font-medium text-white transition hover:bg-amber-600 disabled:bg-slate-300"
-              >
-                {saving ? "Saving..." : "Save Status"}
-              </button>
+              <textarea
+                rows={3}
+                placeholder={
+                  nextStatus === "Resolved"
+                    ? "Explain how this was resolved (required)"
+                    : "Add a note (optional)"
+                }
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                required={nextStatus === "Resolved"}
+                className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </form>
+          ) : (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+              This complaint has been resolved. Only the VC can change its status further —
+              the student can reopen it if they're not satisfied.
             </div>
-
-            <textarea
-              rows={3}
-              placeholder="Add a note (optional)"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            />
-          </form>
+          )
         )}
       </div>
     </div>

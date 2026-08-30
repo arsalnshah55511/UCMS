@@ -169,9 +169,22 @@ const updateComplaintStatus = asyncHandler(async (req, res) => {
         throw new Error("Not authorized to update complaints outside your department");
     }
 
+    // Once Resolved, only the VC can change status further
+    if (complaint.status === COMPLAINT_STATUS.RESOLVED && req.user.role !== ROLES.VC) {
+        res.status(403);
+        throw new Error("Only the VC can change the status of a resolved complaint");
+    }
+
+    // A resolution note is required when moving a complaint into Resolved —
+    // staff must explain how it was resolved, not just close it silently
+    if (req.body.status === COMPLAINT_STATUS.RESOLVED && !req.body.note?.trim()) {
+        res.status(400);
+        throw new Error("Please explain how the complaint was resolved");
+    }
+
     complaint.status = req.body.status;
 
-    if (req.body.status === COMPLAINT_STATUS.RESOLVED && req.body.note?.trim()) {
+    if (req.body.status === COMPLAINT_STATUS.RESOLVED) {
         complaint.resolutionNote = req.body.note.trim();
     }
 
@@ -291,17 +304,31 @@ const bulkUpdateStatus = asyncHandler(async (req, res) => {
         throw new Error(`Status must be one of: ${COMPLAINT_STATUS_LIST.join(", ")}`);
     }
 
+    // Same rule as the single-complaint path: a note is required to move
+    // anything into Resolved, checked once up front for the whole batch
+    if (status === COMPLAINT_STATUS.RESOLVED && !note?.trim()) {
+        res.status(400);
+        throw new Error("Please explain how the complaint was resolved");
+    }
+
     const complaints = await Complaint.find({ _id: { $in: ids } });
 
-    const updatable = req.user.role === ROLES.VC
+    const updatable = (req.user.role === ROLES.VC
         ? complaints
-        : complaints.filter((c) => c.department === req.user.department);
+        : complaints.filter((c) => c.department === req.user.department)
+    ).filter((c) => {
+        // Same as the single-complaint path: once Resolved, only the VC
+        // can change it further — non-VC staff quietly skip these rather
+        // than failing the whole batch, consistent with the department filter above
+        if (c.status === COMPLAINT_STATUS.RESOLVED && req.user.role !== ROLES.VC) return false;
+        return true;
+    });
 
     for (const complaint of updatable) {
 
         complaint.status = status;
 
-        if (status === COMPLAINT_STATUS.RESOLVED && note?.trim()) {
+        if (status === COMPLAINT_STATUS.RESOLVED) {
             complaint.resolutionNote = note.trim();
         }
 
