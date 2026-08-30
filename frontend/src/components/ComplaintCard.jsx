@@ -5,6 +5,11 @@ import RoutingStamp from "./RoutingStamp";
 
 const API_ORIGIN = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "");
 
+function resolveImageUrl(image) {
+  if (!image) return null;
+  return image.startsWith("http") ? image : `${API_ORIGIN}${image}`;
+}
+
 function ticketNumber(id) {
   return `#${id.slice(-6).toUpperCase()}`;
 }
@@ -54,7 +59,7 @@ export default function ComplaintCard({
         {/* Attachment thumbnail — only when the complaint has an image */}
         {complaint.image && (
           <img
-            src={`${API_ORIGIN}${complaint.image}`}
+  src={resolveImageUrl(complaint.image)}
             alt=""
             className="h-12 w-12 shrink-0 rounded-lg border border-gray-200 object-cover"
           />

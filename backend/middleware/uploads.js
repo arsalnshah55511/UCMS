@@ -1,15 +1,13 @@
 const multer = require("multer");
-const path = require("path");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const cloudinary = require("../config/cloudinary");
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, "uploads/");
+const storage = new CloudinaryStorage({
+    cloudinary,
+    params: {
+        folder: "ucms-complaints", // groups uploads in their own Cloudinary folder
+        allowed_formats: ["jpg", "jpeg", "png"],
     },
-
-    filename: (req, file, cb) => {
-        const fileName = Date.now() + path.extname(file.originalname);
-        cb(null, fileName);
-    }
 });
 
 const fileFilter = (req, file, cb) => {

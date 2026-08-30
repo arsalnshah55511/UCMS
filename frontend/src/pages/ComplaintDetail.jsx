@@ -10,6 +10,12 @@ import { COMPLAINT_STATUS_LIST, DEPARTMENTS } from "../utils/constants";
 
 const API_ORIGIN = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "");
 
+function resolveImageUrl(image) {
+  if (!image) return null;
+  return image.startsWith("http") ? image : `${API_ORIGIN}${image}`;
+}
+
+
 function formatDateTime(dateStr) {
   return new Date(dateStr).toLocaleString(undefined, {
     day: "2-digit",
@@ -344,7 +350,7 @@ export default function ComplaintDetail() {
               <div className="mt-5 border-t border-slate-100 pt-5">
                 <h3 className="mb-3 font-serif text-lg font-semibold text-slate-900">Attachment</h3>
                 <img
-                  src={`${API_ORIGIN}${complaint.image}`}
+                  src={resolveImageUrl(complaint.image)}
                   alt="Complaint attachment"
                   className="max-h-72 rounded-xl border border-slate-200 object-cover"
                 />

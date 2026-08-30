@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^1.41.3",
     "cors": "^2.8.6",
     "dictionary-en": "^3.2.0",
     "dotenv": "^17.4.2",
@@ -22,6 +23,7 @@
     "mongoose": "^9.7.4",
     "morgan": "^1.11.0",
     "multer": "^2.2.0",
+    "multer-storage-cloudinary": "^4.0.0",
     "natural": "^8.1.1",
     "nodemailer": "^9.0.6",
     "nspell": "^2.1.5"

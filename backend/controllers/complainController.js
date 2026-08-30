@@ -41,7 +41,7 @@ const createComplaint = asyncHandler(async (req, res) => {
 
     const { title, originalText } = req.body;
 
-    const image = req.file ? `/uploads/${req.file.filename}` : null;
+   const image = req.file ? req.file.path : null;
 
     if (!title || !originalText) {
         res.status(400);
