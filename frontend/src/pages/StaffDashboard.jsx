@@ -41,8 +41,11 @@ export default function StaffDashboard() {
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-   const [statusFilter, setStatusFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");
   const [onlySimilar, setOnlySimilar] = useState(false);
+  // Department filter — VC only, since only the VC dashboard pulls in
+  // every department's complaints at once.
+  const [departmentFilter, setDepartmentFilter] = useState("All");
   // Search is only ever shown to the VC, since only the VC dashboard
   // pulls in every department's complaints at once.
   const [searchQuery, setSearchQuery] = useState("");
@@ -81,13 +84,17 @@ export default function StaffDashboard() {
       .finally(() => setInsightsLoading(false));
   }, [user.role]);
 
-    const filtered = useMemo(() => {
+  const filtered = useMemo(() => {
     let list = statusFilter === "All"
       ? complaints
       : complaints.filter((c) => c.status === statusFilter);
 
     if (onlySimilar) {
       list = list.filter((c) => (c.relatedComplaints?.length || 0) > 0);
+    }
+
+    if (user.role === "vc" && departmentFilter !== "All") {
+      list = list.filter((c) => c.department === departmentFilter);
     }
 
     if (user.role === "vc" && searchQuery.trim()) {
@@ -101,7 +108,7 @@ export default function StaffDashboard() {
     }
 
     return list;
-  }, [complaints, statusFilter, onlySimilar, searchQuery, user.role]);
+  }, [complaints, statusFilter, onlySimilar, searchQuery, departmentFilter, user.role]);
 
   const flaggedCount = useMemo(
     () => complaints.filter((c) => (c.relatedComplaints?.length || 0) > 0).length,
@@ -127,7 +134,7 @@ export default function StaffDashboard() {
     setSelectedIds(new Set());
     setBulkError("");
     setBulkMessage("");
-  }, [statusFilter, onlySimilar]);
+  }, [statusFilter, onlySimilar, departmentFilter]);
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) => {
@@ -289,7 +296,6 @@ export default function StaffDashboard() {
           ))}
         </div>
 
-        {/* Filter pills */}
         {/* Search — VC dashboard only */}
         {user.role === "vc" && (
           <div className="mb-4 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
@@ -311,6 +317,27 @@ export default function StaffDashboard() {
                 Clear
               </button>
             )}
+          </div>
+        )}
+
+        {/* Department filter — VC only */}
+        {user.role === "vc" && (
+          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+            <label className="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Department
+            </label>
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="w-full text-sm text-slate-700 focus:outline-none"
+            >
+              <option value="All">All Departments</option>
+              {DEPARTMENTS.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
           </div>
         )}
 
