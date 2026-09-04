@@ -46,127 +46,175 @@ export default function NewComplaint() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
+    <div className="min-h-screen px-4 py-10" style={{ background: "#EEF0F3", fontFamily: "'Inter', sans-serif" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap');
 
-      <p className="text-sm uppercase tracking-widest text-gray-500 mb-2">
-        New Complaint
-      </p>
+        .title-field {
+          width: 100%;
+          background: transparent;
+          border: none;
+          border-bottom: 1.5px solid #E2E5EA;
+          padding: 10px 2px;
+          color: #23262B;
+          outline: none;
+          font-size: 15px;
+          transition: border-color 180ms ease;
+        }
+        .title-field::placeholder { color: #A8ADB6; }
+        .title-field:focus { border-bottom-color: #0F2C59; }
 
-      <h1 className="text-3xl font-bold text-gray-800 mb-2">
-        Tell us what happened
-      </h1>
+        .ruled-page {
+          background-color: #FFFFFF;
+          background-image: repeating-linear-gradient(
+            to bottom,
+            transparent,
+            transparent 27px,
+            #EEF0F3 28px
+          );
+          line-height: 28px;
+          padding-top: 6px;
+          border: 1px solid #E5E7EB;
+          resize: none;
+          outline: none;
+          color: #23262B;
+        }
+        .ruled-page:focus {
+          border-color: #0F2C59;
+        }
+        .ruled-page::placeholder { color: #A8ADB6; }
 
-      <p className="text-gray-600 mb-8">
-        Write in your own words. Attach an image if available.
-      </p>
+        .evidence-input::file-selector-button {
+          margin-right: 12px;
+          padding: 8px 14px;
+          border: 1.5px solid #0F2C59;
+          border-radius: 2px;
+          background: transparent;
+          color: #0F2C59;
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background-color 150ms ease, color 150ms ease;
+        }
+        .evidence-input::file-selector-button:hover {
+          background: #0F2C59;
+          color: #FFFFFF;
+        }
+      `}</style>
 
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white shadow-lg rounded-xl border p-6 space-y-6"
-      >
+      <div className="mx-auto max-w-3xl">
+        <p className="mb-2 text-[13px] font-medium tracking-wide text-[#0F2C59]">
+          New complaint
+        </p>
 
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-600 px-4 py-2 rounded-lg">
-            {error}
-          </div>
-        )}
+        <h1
+          className="mb-2 text-[32px] font-semibold leading-tight text-[#23262B]"
+          style={{ fontFamily: "'Fraunces', serif" }}
+        >
+          Tell us what happened
+        </h1>
 
-        <div>
-          <label
-            htmlFor="title"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
-            Title
-          </label>
+        <p className="mb-8 text-[#6B7280]">
+          Write in your own words. Attach an image if available.
+        </p>
 
-          <input
-            id="title"
-            name="title"
-            required
-            maxLength={150}
-            placeholder="e.g. No hot water in Hostel Block C"
-            value={form.title}
-            onChange={handleChange}
-            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div>
-
-          <label
-            htmlFor="originalText"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
-            Describe the Issue
-          </label>
-
-          <textarea
-            id="originalText"
-            name="originalText"
-            required
-            rows={7}
-            maxLength={5000}
-            placeholder="Give as much detail as possible..."
-            value={form.originalText}
-            onChange={handleChange}
-            className="w-full border border-gray-300 rounded-lg px-4 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-
-          <p className="text-right text-xs text-gray-500 mt-1">
-            {form.originalText.length}/5000
-          </p>
-
-        </div>
-
-        <div>
-
-          <label
-            htmlFor="image"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
-            Photo Evidence (Optional)
-          </label>
-
-          <input
-            id="image"
-            name="image"
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-            className="block w-full text-sm text-gray-700
-              file:mr-4
-              file:py-2
-              file:px-4
-              file:border
-              file:border-gray-300
-              file:rounded-lg
-              file:bg-gray-100
-              file:text-gray-700
-              file:cursor-pointer
-              hover:file:bg-gray-200
-              cursor-pointer"
-          />
-
-          {imagePreview && (
-            <img
-              src={imagePreview}
-              alt="Preview"
-              className="mt-4 max-h-52 rounded-lg border object-cover"
-            />
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-7 rounded-sm px-7 py-8"
+          style={{
+            background: "#FFFFFF",
+            border: "1px solid #E5E7EB",
+            boxShadow: "0 1px 2px rgba(35,38,43,0.04), 0 12px 32px -12px rgba(35,38,43,0.14)",
+          }}
+        >
+          {error && (
+            <div
+              className="rounded-sm px-4 py-3 text-sm"
+              style={{ background: "#F3E4DE", border: "1px solid #E0B7A8", color: "#8A3A24" }}
+            >
+              {error}
+            </div>
           )}
 
-        </div>
+          <div>
+            <label htmlFor="title" className="mb-1.5 block text-[13px] font-medium text-[#5b5147]">
+              Title
+            </label>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition disabled:bg-gray-400"
-        >
-          {submitting ? "Submitting..." : "Submit Complaint"}
-        </button>
+            <input
+              id="title"
+              name="title"
+              required
+              maxLength={150}
+              placeholder="e.g. No hot water in Hostel Block C"
+              value={form.title}
+              onChange={handleChange}
+              className="title-field"
+            />
+          </div>
 
-      </form>
+          <div>
+            <label htmlFor="originalText" className="mb-1.5 block text-[13px] font-medium text-[#5b5147]">
+              Describe the issue
+            </label>
 
+            <textarea
+              id="originalText"
+              name="originalText"
+              required
+              rows={8}
+              maxLength={5000}
+              placeholder="Give as much detail as possible..."
+              value={form.originalText}
+              onChange={handleChange}
+              className="ruled-page w-full rounded-sm px-4"
+            />
+
+            <p className="mt-1 text-right text-xs text-[#9CA3AF]">
+              {form.originalText.length}/5000
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="image" className="mb-1.5 block text-[13px] font-medium text-[#5b5147]">
+              Photo evidence (optional)
+            </label>
+
+            <input
+              id="image"
+              name="image"
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="evidence-input block w-full text-sm text-[#5b5147]"
+            />
+
+            {imagePreview && (
+              <img
+                src={imagePreview}
+                alt="Preview"
+                className="mt-4 max-h-52 rounded-sm object-cover"
+                style={{ border: "1px solid #E5E7EB" }}
+              />
+            )}
+          </div>
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full rounded-sm py-3 text-sm font-semibold text-white transition-colors duration-150"
+            style={{ background: submitting ? "#8FA6C4" : "#0F2C59" }}
+            onMouseEnter={(e) => {
+              if (!submitting) e.currentTarget.style.background = "#0A1E3F";
+            }}
+            onMouseLeave={(e) => {
+              if (!submitting) e.currentTarget.style.background = "#0F2C59";
+            }}
+          >
+            {submitting ? "Submitting..." : "Submit complaint"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

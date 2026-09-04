@@ -42,25 +42,8 @@ export default function Landing() {
           seamlessly.
         </p>
 
-        {/* Auth Buttons */}
-        <div className="mt-8 flex flex-col gap-3">
-          <Link
-            to="/register"
-            className="w-full rounded-xl bg-slate-900 py-3 text-center font-medium text-white transition hover:bg-amber-600"
-          >
-            Register
-          </Link>
-
-          <Link
-            to="/login"
-            className="w-full rounded-xl border border-slate-200 py-3 text-center font-medium text-slate-700 transition hover:border-slate-900 hover:bg-slate-50"
-          >
-            Login
-          </Link>
-        </div>
-
         {/* Staff Link */}
-        <p className="mt-6 text-center text-sm text-slate-500">
+        <p className="mt-8 text-center text-sm text-slate-500">
           Staff member?{" "}
           <Link to="/staff-register" className="font-medium text-amber-700 hover:underline">
             Register here

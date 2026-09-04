@@ -36,13 +36,36 @@ const STATUS_ICON = {
   ),
 };
 
+// Which statuses belong to which top-level tab. This is the entire
+// "lifecycle" rule: a complaint moves tabs the instant its status
+// changes — nothing is ever deleted or time-delayed.
+const ACTIVE_STATUSES = ["Pending", "In-Process"];
+const CLOSED_STATUSES = ["Resolved", "Rejected"];
+
+const VIEW_ICON = {
+  Active: (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+    </svg>
+  ),
+  Closed: (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+};
+
 export default function StaffDashboard() {
   const { user } = useAuth();
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Top-level lifecycle tab: which bucket of statuses we're looking at.
+  const [view, setView] = useState("Active"); // "Active" | "Closed"
   const [statusFilter, setStatusFilter] = useState("All");
   const [onlySimilar, setOnlySimilar] = useState(false);
+
   // Department filter — VC only, driven by the left sidebar, since only
   // the VC dashboard pulls in every department's complaints at once.
   const [departmentFilter, setDepartmentFilter] = useState("All");
@@ -84,10 +107,16 @@ export default function StaffDashboard() {
       .finally(() => setInsightsLoading(false));
   }, [user.role]);
 
+  // Statuses available as filter pills depend on which tab is active —
+  // there's no point offering a "Resolved" pill while inside "Active".
+  const statusesForView = view === "Active" ? ACTIVE_STATUSES : CLOSED_STATUSES;
+
   const filtered = useMemo(() => {
-    let list = statusFilter === "All"
-      ? complaints
-      : complaints.filter((c) => c.status === statusFilter);
+    let list = complaints.filter((c) => statusesForView.includes(c.status));
+
+    if (statusFilter !== "All") {
+      list = list.filter((c) => c.status === statusFilter);
+    }
 
     if (onlySimilar) {
       list = list.filter((c) => (c.relatedComplaints?.length || 0) > 0);
@@ -108,7 +137,7 @@ export default function StaffDashboard() {
     }
 
     return list;
-  }, [complaints, statusFilter, onlySimilar, searchQuery, departmentFilter, user.role]);
+  }, [complaints, statusesForView, statusFilter, onlySimilar, searchQuery, departmentFilter, user.role]);
 
   // Per-department counts, for the sidebar badges — always computed off
   // the full complaint list, not the filtered one, so counts don't shift
@@ -140,8 +169,28 @@ export default function StaffDashboard() {
     return c;
   }, [complaints]);
 
-  // Selection is cleared whenever the filter changes, so staff never end
-  // up applying a bulk action to complaints they can no longer see.
+  // Tab-level counts, for the Active/Closed segmented control.
+  const viewCounts = useMemo(
+    () => ({
+      Active: complaints.filter((c) => ACTIVE_STATUSES.includes(c.status)).length,
+      Closed: complaints.filter((c) => CLOSED_STATUSES.includes(c.status)).length,
+    }),
+    [complaints]
+  );
+
+  // Switching the Active/Closed tab resets the status pill back to "All"
+  // for that tab, and clears selection so bulk actions never apply to
+  // complaints the staff member can no longer see.
+  const handleViewChange = (next) => {
+    if (next === view) return;
+    setView(next);
+    setStatusFilter("All");
+    setSelectedIds(new Set());
+    setBulkError("");
+    setBulkMessage("");
+  };
+
+  // Selection is also cleared whenever any other filter changes.
   useEffect(() => {
     setSelectedIds(new Set());
     setBulkError("");
@@ -225,6 +274,34 @@ export default function StaffDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {/* Local styles for the one deliberate motion moment (tab switch)
+          and a couple of refined surface effects that Tailwind's core
+          utilities don't cover on their own. */}
+      <style>{`
+        @keyframes queueFadeIn {
+          from { opacity: 0; transform: translateY(4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .queue-panel {
+          animation: queueFadeIn 220ms ease-out;
+        }
+        .stat-card {
+          position: relative;
+          overflow: hidden;
+        }
+        .stat-card::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(135deg, currentColor 0%, transparent 55%);
+          opacity: 0.045;
+          pointer-events: none;
+        }
+        .segmented-thumb {
+          transition: transform 260ms cubic-bezier(0.65, 0, 0.35, 1);
+        }
+      `}</style>
+
       {/* Institutional top accent bar */}
       <div className="h-1.5 w-full bg-gradient-to-r from-slate-900 via-amber-600 to-slate-900" />
 
@@ -233,14 +310,14 @@ export default function StaffDashboard() {
           {/* Left sidebar — department list, VC only */}
           {user.role === "vc" && (
             <aside className="w-full shrink-0 lg:w-56">
-              <div className="sticky top-8 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+              <div className="sticky top-8 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm shadow-slate-200/60">
                 <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Departments
                 </p>
                 <nav className="flex flex-col gap-1">
                   <button
                     onClick={() => setDepartmentFilter("All")}
-                    className={`flex items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium transition ${
+                    className={`flex items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors duration-150 ${
                       departmentFilter === "All"
                         ? "bg-slate-900 text-white shadow-sm"
                         : "text-slate-600 hover:bg-slate-50 hover:text-amber-700"
@@ -260,7 +337,7 @@ export default function StaffDashboard() {
                     <button
                       key={d}
                       onClick={() => setDepartmentFilter(d)}
-                      className={`flex items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium transition ${
+                      className={`flex items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors duration-150 ${
                         departmentFilter === d
                           ? "bg-slate-900 text-white shadow-sm"
                           : "text-slate-600 hover:bg-slate-50 hover:text-amber-700"
@@ -286,7 +363,7 @@ export default function StaffDashboard() {
             {/* Header */}
             <div className="mb-8 flex flex-wrap items-start justify-between gap-6 border-b border-slate-200 pb-6">
               <div className="flex items-start gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 border-amber-500/40 bg-slate-900 font-serif text-xl font-bold text-amber-400">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 border-amber-500/40 bg-slate-900 font-serif text-xl font-bold text-amber-400 shadow-md shadow-slate-900/10">
                   {scopeLabel.charAt(0)}
                 </div>
                 <div>
@@ -306,7 +383,7 @@ export default function StaffDashboard() {
                 </div>
               </div>
 
-              <div className="shrink-0 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-center shadow-sm">
+              <div className="shrink-0 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-center shadow-sm shadow-slate-200/60">
                 <p className="font-serif text-3xl font-bold text-slate-900">{complaints.length}</p>
                 <p className="mt-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
                   Total Complaints
@@ -347,9 +424,9 @@ export default function StaffDashboard() {
               {COMPLAINT_STATUS_LIST.map((s) => (
                 <div
                   key={s}
-                  className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                  className={`stat-card group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md ${STATUS_ACCENT[s] || "text-slate-800"}`}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="relative flex items-center justify-between">
                     <span className={`rounded-lg bg-slate-50 p-2 ${STATUS_ACCENT[s] || "text-slate-800"}`}>
                       {STATUS_ICON[s]}
                     </span>
@@ -357,16 +434,43 @@ export default function StaffDashboard() {
                       {counts[s] || 0}
                     </h2>
                   </div>
-                  <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <p className="relative mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
                     {s}
                   </p>
                 </div>
               ))}
             </div>
 
+            {/* Active / Closed lifecycle tabs */}
+            <div className="mb-4 inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm shadow-slate-200/60">
+              {["Active", "Closed"].map((v) => (
+                <button
+                  key={v}
+                  onClick={() => handleViewChange(v)}
+                  className={`segmented-thumb flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold ${
+                    view === v
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  <span className={view === v ? "text-amber-400" : "text-slate-400"}>
+                    {VIEW_ICON[v]}
+                  </span>
+                  {v}
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                      view === v ? "bg-white/15 text-white" : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {viewCounts[v]}
+                  </span>
+                </button>
+              ))}
+            </div>
+
             {/* Search — VC dashboard only */}
             {user.role === "vc" && (
-              <div className="mb-4 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+              <div className="mb-4 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm shadow-slate-200/60">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
@@ -388,9 +492,9 @@ export default function StaffDashboard() {
               </div>
             )}
 
-            {/* Filter pills */}
-            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-              {["All", ...COMPLAINT_STATUS_LIST].map((s) => (
+            {/* Status filter pills — scoped to whichever tab (Active/Closed) is selected */}
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm shadow-slate-200/60">
+              {["All", ...statusesForView].map((s) => (
                 <button
                   key={s}
                   onClick={() => setStatusFilter(s)}
@@ -431,8 +535,12 @@ export default function StaffDashboard() {
 
             {!loading && !error && filtered.length === 0 && (
               <EmptyState
-                title="Queue is empty"
-                subtitle="Nothing here matches this filter right now."
+                title={view === "Active" ? "Nothing active right now" : "No closed complaints yet"}
+                subtitle={
+                  view === "Active"
+                    ? "Nothing here matches this filter right now."
+                    : "Resolved and rejected complaints will appear here."
+                }
               />
             )}
 
@@ -544,7 +652,10 @@ export default function StaffDashboard() {
               </div>
             )}
 
-            <div className="flex flex-col gap-3">
+            {/* key={view} restarts the fade-in animation each time the
+                Active/Closed tab changes, so switching tabs feels like a
+                deliberate transition rather than an instant swap. */}
+            <div key={view} className="queue-panel flex flex-col gap-3">
               {filtered.map((c) => (
                 <ComplaintCard
                   key={c._id}

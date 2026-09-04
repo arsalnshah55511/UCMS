@@ -12,9 +12,9 @@
         "solver": "lbfgs"
     },
     "dataset": {
-        "total_records": 2500,
-        "training_records": 2000,
-        "testing_records": 500
+        "total_records": 12500,
+        "training_records": 10000,
+        "testing_records": 2500
     },
     "departments": [
         "Academic",
@@ -38,44 +38,44 @@
             "precision": 1.0,
             "recall": 1.0,
             "f1-score": 1.0,
-            "support": 100.0
+            "support": 500.0
         },
         "Administrative Offices": {
             "precision": 1.0,
             "recall": 1.0,
             "f1-score": 1.0,
-            "support": 100.0
+            "support": 500.0
         },
         "Hostel/Provost Office": {
             "precision": 1.0,
             "recall": 1.0,
             "f1-score": 1.0,
-            "support": 100.0
+            "support": 500.0
         },
         "IT Services": {
             "precision": 1.0,
             "recall": 1.0,
             "f1-score": 1.0,
-            "support": 100.0
+            "support": 500.0
         },
         "Maintenance & Facilities": {
             "precision": 1.0,
             "recall": 1.0,
             "f1-score": 1.0,
-            "support": 100.0
+            "support": 500.0
         },
         "accuracy": 1.0,
         "macro avg": {
             "precision": 1.0,
             "recall": 1.0,
             "f1-score": 1.0,
-            "support": 500.0
+            "support": 2500.0
         },
         "weighted avg": {
             "precision": 1.0,
             "recall": 1.0,
             "f1-score": 1.0,
-            "support": 500.0
+            "support": 2500.0
         }
     },
     "confusion_matrix": {
@@ -88,7 +88,7 @@
         ],
         "matrix": [
             [
-                100,
+                500,
                 0,
                 0,
                 0,
@@ -96,7 +96,7 @@
             ],
             [
                 0,
-                100,
+                500,
                 0,
                 0,
                 0
@@ -104,7 +104,7 @@
             [
                 0,
                 0,
-                100,
+                500,
                 0,
                 0
             ],
@@ -112,7 +112,7 @@
                 0,
                 0,
                 0,
-                100,
+                500,
                 0
             ],
             [
@@ -120,7 +120,7 @@
                 0,
                 0,
                 0,
-                100
+                500
             ]
         ]
     }
