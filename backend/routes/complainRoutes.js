@@ -34,8 +34,7 @@ const {
 
 router.get("/", protect, getComplaints);
 
-// IMPORTANT: this must be declared BEFORE "/:id" below, or Express will
-// try to match "insights" as a complaint ID instead of this route.
+
 router.get("/insights", protect, authorize(ROLES.VC), getInsights);
 
 // IMPORTANT: both bulk routes must be declared BEFORE "/:id/status" and

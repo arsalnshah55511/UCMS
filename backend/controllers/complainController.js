@@ -38,7 +38,7 @@ const buildScopeFilter =  (user)=>{
  */
 
 const createComplaint = asyncHandler(async (req, res) => {
-
+ console.log("heyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
     const { title, originalText } = req.body;
 
    const image = req.file ? req.file.path : null;
@@ -48,6 +48,7 @@ const createComplaint = asyncHandler(async (req, res) => {
         throw new Error("Please enter title and complaint");
     }
 
+   
     // AI
     const aiResult = await analyzeComplaint(title, originalText);
 
@@ -358,9 +359,9 @@ const bulkUpdateStatus = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Reassign multiple complaints to a different department at once.
- * @route   PUT /api/complaints/bulk/department
- * @access  Private (VC only)
+ *     Reassign multiple complaints to a different department at once.
+ *    PUT /api/complaints/bulk/department
+ *  Private (VC only)
  */
 const bulkReassignDepartment = asyncHandler(async (req, res) => {
 
@@ -408,11 +409,11 @@ const bulkReassignDepartment = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Returns a plain-English AI-generated summary of complaint
+ *     Returns a plain-English AI-generated summary of complaint
  *          trends across all departments (volume trend, top departments,
  *          unresolved high-priority backlog).
- * @route   GET /api/complaints/insights
- * @access  Private (VC only)
+ *    GET /api/complaints/insights
+ *   Private (VC only)
  */
 const getInsights = asyncHandler(async (req, res) => {
 
@@ -476,9 +477,9 @@ const submitFeedback = asyncHandler(async (req, res) => {
 });
  
 /**
- * @desc    Retrieve the feedback left on a complaint, if any.
- * @route   GET /api/complaints/:id/feedback
- * @access  Private (submitter, same-department staff, or VC — same visibility
+ *   Retrieve the feedback left on a complaint, if any.
+ *    GET /api/complaints/:id/feedback
+ *   Private (submitter, same-department staff, or VC — same visibility
  *          rule as viewing the complaint itself)
  */
 const getFeedback = asyncHandler(async (req, res) => {
@@ -509,12 +510,12 @@ const getFeedback = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Reopen a Resolved complaint that the submitter isn't satisfied
+ *     Reopen a Resolved complaint that the submitter isn't satisfied
  *          with, instead of forcing them to submit a fresh duplicate.
  *          Requires a reason, and resets the complaint to Pending so it
  *          re-enters the department's active queue.
- * @route   PUT /api/complaints/:id/reopen
- * @access  Private (must be the complaint's original submitter)
+ *    PUT /api/complaints/:id/reopen
+ *   Private (must be the complaint's original submitter)
  */
 const reopenComplaint = asyncHandler(async (req, res) => {
 
@@ -571,13 +572,13 @@ const reopenComplaint = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Delete a complaint. Restricted to the original submitter, and
+ *    Delete a complaint. Restricted to the original submitter, and
  *          only while the complaint is still Pending — once staff has
  *          started working it (any status change, reassignment, etc.),
  *          deletion is blocked so the audit trail and any staff time
  *          already spent isn't silently erased.
- * @route   DELETE /api/complaints/:id
- * @access  Private (must be the complaint's original submitter)
+ *    DELETE /api/complaints/:id
+ *  Private (must be the complaint's original submitter)
  */
 const deleteComplaint = asyncHandler(async (req, res) => {
 

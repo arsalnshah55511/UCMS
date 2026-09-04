@@ -20,15 +20,11 @@ const notificationRoutes = require("./routes/notificationRoutes")
 const app = express()
 
 // Render (and most hosting platforms) sit behind a reverse proxy, which
-// sets X-Forwarded-For on incoming requests. Without this, express-rate-limit
-// throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR because it can't tell whether
-// that header is trustworthy. `1` means "trust exactly one hop" (Render's
-// own proxy) — this is safe here since Render is the only thing in front
+
 // of this server.
 app.set("trust proxy", 1)
 
-// CORS must come first so every response — including rate-limit
-// rejections and errors — carries the Access-Control-Allow-Origin header.
+
 const allowedOrigins = [
     "http://localhost:5173",
     process.env.FRONTEND_URL, // set this on Render to your deployed frontend URL

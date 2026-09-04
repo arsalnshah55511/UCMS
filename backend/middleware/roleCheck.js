@@ -1,5 +1,5 @@
 /**
- * Usage: authorize("hod", "admin_office") - allows only listed roles.
+ * Usage: authorize("hod", "vice chancellor") - allows only listed roles.
  * Must run after `protect` so req.user is populated.
  */
 const authorize = (...allowedRoles) => {

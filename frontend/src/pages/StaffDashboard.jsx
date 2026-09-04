@@ -43,8 +43,8 @@ export default function StaffDashboard() {
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [onlySimilar, setOnlySimilar] = useState(false);
-  // Department filter — VC only, since only the VC dashboard pulls in
-  // every department's complaints at once.
+  // Department filter — VC only, driven by the left sidebar, since only
+  // the VC dashboard pulls in every department's complaints at once.
   const [departmentFilter, setDepartmentFilter] = useState("All");
   // Search is only ever shown to the VC, since only the VC dashboard
   // pulls in every department's complaints at once.
@@ -109,6 +109,18 @@ export default function StaffDashboard() {
 
     return list;
   }, [complaints, statusFilter, onlySimilar, searchQuery, departmentFilter, user.role]);
+
+  // Per-department counts, for the sidebar badges — always computed off
+  // the full complaint list, not the filtered one, so counts don't shift
+  // as the user filters by status/search.
+  const departmentCounts = useMemo(() => {
+    const c = {};
+    DEPARTMENTS.forEach((d) => (c[d] = 0));
+    complaints.forEach((x) => {
+      if (x.department in c) c[x.department] += 1;
+    });
+    return c;
+  }, [complaints]);
 
   const flaggedCount = useMemo(
     () => complaints.filter((c) => (c.relatedComplaints?.length || 0) > 0).length,
@@ -216,299 +228,336 @@ export default function StaffDashboard() {
       {/* Institutional top accent bar */}
       <div className="h-1.5 w-full bg-gradient-to-r from-slate-900 via-amber-600 to-slate-900" />
 
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        {/* Header */}
-        <div className="mb-8 flex flex-wrap items-start justify-between gap-6 border-b border-slate-200 pb-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 border-amber-500/40 bg-slate-900 font-serif text-xl font-bold text-amber-400">
-              {scopeLabel.charAt(0)}
-            </div>
-            <div>
-              <p className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-amber-600">
-                {scopeLabel}
-              </p>
-              <h1 className="mt-1 font-serif text-4xl font-bold leading-tight text-slate-900">
-                Complaint Queue
-              </h1>
-              <p className="mt-1 text-sm text-slate-500">
-                {user.role === "vc"
-                  ? "System-wide view across every department"
-                  : "Complaints routed to your department"}
-              </p>
-            </div>
-          </div>
-
-          <div className="shrink-0 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-center shadow-sm">
-            <p className="font-serif text-3xl font-bold text-slate-900">{complaints.length}</p>
-            <p className="mt-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-              Total Complaints
-            </p>
-          </div>
-        </div>
-
-        {/* AI Insights — VC only */}
-        {user.role === "vc" && (
-          <div className="mb-8 overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-br from-slate-900 to-slate-800 p-6 shadow-sm">
-            <div className="mb-3 flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              <p className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-amber-400">
-                AI Insights
-              </p>
-            </div>
-
-            {insightsLoading && (
-              <p className="text-sm text-slate-300">Analyzing complaint trends...</p>
-            )}
-
-            {!insightsLoading && insights && (
-              <p className="font-serif text-lg leading-relaxed text-white">
-                {insights.summary}
-              </p>
-            )}
-
-            {!insightsLoading && !insights && (
-              <p className="text-sm text-slate-400">Insights unavailable right now.</p>
-            )}
-          </div>
-        )}
-
-        {/* Stat cards */}
-        <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-          {COMPLAINT_STATUS_LIST.map((s) => (
-            <div
-              key={s}
-              className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <div className="flex items-center justify-between">
-                <span className={`rounded-lg bg-slate-50 p-2 ${STATUS_ACCENT[s] || "text-slate-800"}`}>
-                  {STATUS_ICON[s]}
-                </span>
-                <h2 className={`font-serif text-3xl font-bold ${STATUS_ACCENT[s] || "text-slate-800"}`}>
-                  {counts[s] || 0}
-                </h2>
-              </div>
-              <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {s}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {/* Search — VC dashboard only */}
-        {user.role === "vc" && (
-          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by title, complaint text, or submitter name..."
-              className="w-full text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="shrink-0 text-xs font-medium text-slate-400 hover:text-slate-600"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Department filter — VC only */}
-        {user.role === "vc" && (
-          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
-            <label className="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Department
-            </label>
-            <select
-              value={departmentFilter}
-              onChange={(e) => setDepartmentFilter(e.target.value)}
-              className="w-full text-sm text-slate-700 focus:outline-none"
-            >
-              <option value="All">All Departments</option>
-              {DEPARTMENTS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* Filter pills */}
-        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-          {["All", ...COMPLAINT_STATUS_LIST].map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={`rounded-xl px-4 py-2 text-sm font-medium transition duration-200 ${
-                statusFilter === s
-                  ? "bg-slate-900 text-white shadow-sm"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-amber-700"
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-
-          {flaggedCount > 0 && (
-            <button
-              onClick={() => setOnlySimilar((prev) => !prev)}
-              className={`ml-auto flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium transition duration-200 ${
-                onlySimilar
-                  ? "bg-amber-500 text-white shadow-sm"
-                  : "text-amber-700 hover:bg-amber-50"
-              }`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-              </svg>
-              {onlySimilar ? "Showing flagged only" : `${flaggedCount} flagged as similar`}
-            </button>
-          )}
-        </div>
-
-        {loading && <Spinner label="Loading queue" />}
-
-        {error && (
-          <div className="mb-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-700">
-            {error}
-          </div>
-        )}
-
-        {!loading && !error && filtered.length === 0 && (
-          <EmptyState
-            title="Queue is empty"
-            subtitle="Nothing here matches this filter right now."
-          />
-        )}
-
-        {!loading && !error && filtered.length > 0 && (
-          <div className="mb-3 flex items-center gap-2 px-1">
-            <input
-              type="checkbox"
-              checked={allFilteredSelected}
-              onChange={toggleSelectAll}
-              className="h-4 w-4 cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-sm text-slate-500">
-              {selectedIds.size > 0
-                ? `${selectedIds.size} selected`
-                : `Select all ${filtered.length} shown`}
-            </span>
-          </div>
-        )}
-
-        {/* Bulk action toolbar — appears once at least one complaint is selected */}
-        {selectedIds.size > 0 && (
-          <div className="mb-6 space-y-4 rounded-2xl border border-blue-200 bg-blue-50/60 p-5 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="font-serif text-lg font-semibold text-slate-900">
-                Bulk Actions — {selectedIds.size} selected
-              </h2>
-              <button
-                onClick={clearSelection}
-                className="text-sm font-medium text-slate-500 hover:text-slate-700"
-              >
-                Clear selection
-              </button>
-            </div>
-
-            {bulkError && (
-              <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-rose-700">
-                {bulkError}
-              </div>
-            )}
-
-            {bulkMessage && (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-emerald-700">
-                {bulkMessage}
-              </div>
-            )}
-
-            {/* Bulk status update */}
-            <form onSubmit={handleBulkStatusUpdate} className="space-y-3 rounded-xl bg-white p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Update Status
-              </p>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <select
-                  value={bulkStatus}
-                  onChange={(e) => setBulkStatus(e.target.value)}
-                  className="rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                >
-                  {COMPLAINT_STATUS_LIST.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="submit"
-                  disabled={bulkSaving}
-                  className="rounded-xl bg-slate-900 py-2 font-medium text-white transition hover:bg-amber-600 disabled:bg-slate-300"
-                >
-                  {bulkSaving ? "Applying..." : `Apply to ${selectedIds.size}`}
-                </button>
-              </div>
-              <textarea
-                rows={2}
-                placeholder="Add a note (optional)"
-                value={bulkNote}
-                onChange={(e) => setBulkNote(e.target.value)}
-                className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-            </form>
-
-            {/* Bulk department reassignment — VC only, same restriction as the single-complaint version */}
-            {user.role === "vc" && (
-              <form onSubmit={handleBulkReassign} className="space-y-3 rounded-xl bg-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Reassign Department
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+        <div className="flex flex-col gap-6 lg:flex-row">
+          {/* Left sidebar — department list, VC only */}
+          {user.role === "vc" && (
+            <aside className="w-full shrink-0 lg:w-56">
+              <div className="sticky top-8 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Departments
                 </p>
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <select
-                    value={bulkDepartment}
-                    onChange={(e) => setBulkDepartment(e.target.value)}
-                    className="rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  >
-                    {DEPARTMENTS.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
+                <nav className="flex flex-col gap-1">
                   <button
-                    type="submit"
-                    disabled={bulkSaving}
-                    className="rounded-xl bg-amber-600 py-2 font-medium text-white transition hover:bg-amber-700 disabled:bg-slate-300"
+                    onClick={() => setDepartmentFilter("All")}
+                    className={`flex items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium transition ${
+                      departmentFilter === "All"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-amber-700"
+                    }`}
                   >
-                    {bulkSaving ? "Reassigning..." : `Reassign ${selectedIds.size}`}
+                    <span>All Departments</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${
+                        departmentFilter === "All" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {complaints.length}
+                    </span>
+                  </button>
+
+                  {DEPARTMENTS.map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => setDepartmentFilter(d)}
+                      className={`flex items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium transition ${
+                        departmentFilter === d
+                          ? "bg-slate-900 text-white shadow-sm"
+                          : "text-slate-600 hover:bg-slate-50 hover:text-amber-700"
+                      }`}
+                    >
+                      <span className="truncate">{d}</span>
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${
+                          departmentFilter === d ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {departmentCounts[d] || 0}
+                      </span>
+                    </button>
+                  ))}
+                </nav>
+              </div>
+            </aside>
+          )}
+
+          {/* Main content */}
+          <div className="min-w-0 flex-1">
+            {/* Header */}
+            <div className="mb-8 flex flex-wrap items-start justify-between gap-6 border-b border-slate-200 pb-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 border-amber-500/40 bg-slate-900 font-serif text-xl font-bold text-amber-400">
+                  {scopeLabel.charAt(0)}
+                </div>
+                <div>
+                  <p className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-amber-600">
+                    {departmentFilter === "All" ? scopeLabel : departmentFilter}
+                  </p>
+                  <h1 className="mt-1 font-serif text-4xl font-bold leading-tight text-slate-900">
+                    Complaint Queue
+                  </h1>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {user.role === "vc"
+                      ? departmentFilter === "All"
+                        ? "System-wide view across every department"
+                        : `Filtered to ${departmentFilter}`
+                      : "Complaints routed to your department"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="shrink-0 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-center shadow-sm">
+                <p className="font-serif text-3xl font-bold text-slate-900">{complaints.length}</p>
+                <p className="mt-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+                  Total Complaints
+                </p>
+              </div>
+            </div>
+
+            {/* AI Insights — VC only */}
+            {user.role === "vc" && (
+              <div className="mb-8 overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-br from-slate-900 to-slate-800 p-6 shadow-sm">
+                <div className="mb-3 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <p className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-amber-400">
+                    AI Insights
+                  </p>
+                </div>
+
+                {insightsLoading && (
+                  <p className="text-sm text-slate-300">Analyzing complaint trends...</p>
+                )}
+
+                {!insightsLoading && insights && (
+                  <p className="font-serif text-lg leading-relaxed text-white">
+                    {insights.summary}
+                  </p>
+                )}
+
+                {!insightsLoading && !insights && (
+                  <p className="text-sm text-slate-400">Insights unavailable right now.</p>
+                )}
+              </div>
+            )}
+
+            {/* Stat cards */}
+            <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+              {COMPLAINT_STATUS_LIST.map((s) => (
+                <div
+                  key={s}
+                  className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className={`rounded-lg bg-slate-50 p-2 ${STATUS_ACCENT[s] || "text-slate-800"}`}>
+                      {STATUS_ICON[s]}
+                    </span>
+                    <h2 className={`font-serif text-3xl font-bold ${STATUS_ACCENT[s] || "text-slate-800"}`}>
+                      {counts[s] || 0}
+                    </h2>
+                  </div>
+                  <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    {s}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* Search — VC dashboard only */}
+            {user.role === "vc" && (
+              <div className="mb-4 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by title, complaint text, or submitter name..."
+                  className="w-full text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="shrink-0 text-xs font-medium text-slate-400 hover:text-slate-600"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Filter pills */}
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+              {["All", ...COMPLAINT_STATUS_LIST].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStatusFilter(s)}
+                  className={`rounded-xl px-4 py-2 text-sm font-medium transition duration-200 ${
+                    statusFilter === s
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-amber-700"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+
+              {flaggedCount > 0 && (
+                <button
+                  onClick={() => setOnlySimilar((prev) => !prev)}
+                  className={`ml-auto flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium transition duration-200 ${
+                    onlySimilar
+                      ? "bg-amber-500 text-white shadow-sm"
+                      : "text-amber-700 hover:bg-amber-50"
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                  </svg>
+                  {onlySimilar ? "Showing flagged only" : `${flaggedCount} flagged as similar`}
+                </button>
+              )}
+            </div>
+
+            {loading && <Spinner label="Loading queue" />}
+
+            {error && (
+              <div className="mb-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-700">
+                {error}
+              </div>
+            )}
+
+            {!loading && !error && filtered.length === 0 && (
+              <EmptyState
+                title="Queue is empty"
+                subtitle="Nothing here matches this filter right now."
+              />
+            )}
+
+            {!loading && !error && filtered.length > 0 && (
+              <div className="mb-3 flex items-center gap-2 px-1">
+                <input
+                  type="checkbox"
+                  checked={allFilteredSelected}
+                  onChange={toggleSelectAll}
+                  className="h-4 w-4 cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-slate-500">
+                  {selectedIds.size > 0
+                    ? `${selectedIds.size} selected`
+                    : `Select all ${filtered.length} shown`}
+                </span>
+              </div>
+            )}
+
+            {/* Bulk action toolbar — appears once at least one complaint is selected */}
+            {selectedIds.size > 0 && (
+              <div className="mb-6 space-y-4 rounded-2xl border border-blue-200 bg-blue-50/60 p-5 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="font-serif text-lg font-semibold text-slate-900">
+                    Bulk Actions — {selectedIds.size} selected
+                  </h2>
+                  <button
+                    onClick={clearSelection}
+                    className="text-sm font-medium text-slate-500 hover:text-slate-700"
+                  >
+                    Clear selection
                   </button>
                 </div>
-              </form>
-            )}
-          </div>
-        )}
 
-        <div className="flex flex-col gap-3">
-          {filtered.map((c) => (
-            <ComplaintCard
-              key={c._id}
-              complaint={c}
-              showSubmitter
-              showSimilarFlag
-              selectable
-              selected={selectedIds.has(c._id)}
-              onToggleSelect={toggleSelect}
-            />
-          ))}
+                {bulkError && (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-rose-700">
+                    {bulkError}
+                  </div>
+                )}
+
+                {bulkMessage && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-emerald-700">
+                    {bulkMessage}
+                  </div>
+                )}
+
+                {/* Bulk status update */}
+                <form onSubmit={handleBulkStatusUpdate} className="space-y-3 rounded-xl bg-white p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Update Status
+                  </p>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <select
+                      value={bulkStatus}
+                      onChange={(e) => setBulkStatus(e.target.value)}
+                      className="rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    >
+                      {COMPLAINT_STATUS_LIST.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="submit"
+                      disabled={bulkSaving}
+                      className="rounded-xl bg-slate-900 py-2 font-medium text-white transition hover:bg-amber-600 disabled:bg-slate-300"
+                    >
+                      {bulkSaving ? "Applying..." : `Apply to ${selectedIds.size}`}
+                    </button>
+                  </div>
+                  <textarea
+                    rows={2}
+                    placeholder="Add a note (optional)"
+                    value={bulkNote}
+                    onChange={(e) => setBulkNote(e.target.value)}
+                    className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </form>
+
+                {/* Bulk department reassignment — VC only, same restriction as the single-complaint version */}
+                {user.role === "vc" && (
+                  <form onSubmit={handleBulkReassign} className="space-y-3 rounded-xl bg-white p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Reassign Department
+                    </p>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      <select
+                        value={bulkDepartment}
+                        onChange={(e) => setBulkDepartment(e.target.value)}
+                        className="rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      >
+                        {DEPARTMENTS.map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="submit"
+                        disabled={bulkSaving}
+                        className="rounded-xl bg-amber-600 py-2 font-medium text-white transition hover:bg-amber-700 disabled:bg-slate-300"
+                      >
+                        {bulkSaving ? "Reassigning..." : `Reassign ${selectedIds.size}`}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3">
+              {filtered.map((c) => (
+                <ComplaintCard
+                  key={c._id}
+                  complaint={c}
+                  showSubmitter
+                  showSimilarFlag
+                  selectable
+                  selected={selectedIds.has(c._id)}
+                  onToggleSelect={toggleSelect}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
