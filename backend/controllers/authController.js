@@ -9,7 +9,7 @@ const { ROLE_LIST, SUBMITTER_ROLES, STAFF_ROLES, REGISTERABLE_STAFF_ROLES, DEPAR
  * @desc    Register a new user (student/faculty self-register;
  *          staff roles are typically created by a VC/admin via createStaffUser)
  * @route   POST /api/auth/register
- * @access  Public
+
  */
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, role, rollNumber, phone } = req.body;

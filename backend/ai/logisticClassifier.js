@@ -1,9 +1,9 @@
 const fs = require("fs");
 const path = require("path");
 
-// --------------------------------------------------
-// Load exported scikit-learn model
-// --------------------------------------------------
+// ==========================================================
+// Load exported Python model
+// ==========================================================
 
 const modelPath = path.join(
     __dirname,
@@ -18,126 +18,204 @@ const tfidf = model.feature_extraction;
 const classifier = model.classifier;
 
 
-// --------------------------------------------------
+// ==========================================================
+// Stopwords
+// ==========================================================
+
+const stopwordSet = new Set(
+    tfidf.stop_words || []
+);
+
+
+// ==========================================================
 // Text preprocessing
-// --------------------------------------------------
+// ==========================================================
 
 function preprocessText(text) {
-    return text
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
+
+    let processed = String(text || "");
+
+    // Match TfidfVectorizer(lowercase=True)
+    if (tfidf.lowercase) {
+        processed = processed.toLowerCase();
+    }
+
+    return processed;
 }
 
 
-// --------------------------------------------------
+// ==========================================================
 // Tokenization
-// --------------------------------------------------
+// ==========================================================
 
 function tokenize(text) {
-    return preprocessText(text)
-        .split(/\s+/)
-        .filter(Boolean);
+
+    const processed = preprocessText(text);
+
+    /*
+     * Matches the default scikit-learn token pattern:
+     *
+     * (?u)\b\w\w+\b
+     *
+     * Tokens must contain at least 2 characters.
+     */
+
+    const matches = processed.match(
+        /[a-z0-9_]{2,}/g
+    );
+
+    if (!matches) {
+        return [];
+    }
+
+    return matches;
 }
 
 
-// --------------------------------------------------
-// Generate unigrams + bigrams
-// --------------------------------------------------
+// ==========================================================
+// Stopword removal
+// ==========================================================
+
+function removeStopwords(tokens) {
+
+    return tokens.filter(
+        token => !stopwordSet.has(token)
+    );
+}
+
+
+// ==========================================================
+// Generate n-grams
+// ==========================================================
 
 function generateNgrams(tokens) {
 
     const ngrams = [];
 
-    // Unigrams
-    for (const token of tokens) {
-        ngrams.push(token);
-    }
+    const minN =
+        tfidf.ngram_range[0];
 
-    // Bigrams
-    for (let i = 0; i < tokens.length - 1; i++) {
-        ngrams.push(
-            `${tokens[i]} ${tokens[i + 1]}`
-        );
+    const maxN =
+        tfidf.ngram_range[1];
+
+    for (
+        let n = minN;
+        n <= maxN;
+        n++
+    ) {
+
+        for (
+            let i = 0;
+            i <= tokens.length - n;
+            i++
+        ) {
+
+            ngrams.push(
+                tokens
+                    .slice(i, i + n)
+                    .join(" ")
+            );
+        }
     }
 
     return ngrams;
 }
 
 
-// --------------------------------------------------
-// Calculate TF-IDF vector
-// --------------------------------------------------
+// ==========================================================
+// Create TF-IDF vector
+// ==========================================================
 
 function createTfidfVector(text) {
 
-    const tokens = tokenize(text);
+    // Tokenize
+    let tokens =
+        tokenize(text);
 
-    const ngrams = generateNgrams(tokens);
+    // Remove English stopwords
+    tokens =
+        removeStopwords(tokens);
 
-    const vector = new Array(
-        classifier.number_of_features
-    ).fill(0);
+    // Generate 1-grams and 2-grams
+    const ngrams =
+        generateNgrams(tokens);
+
+    // Create empty vector
+    const vector =
+        new Array(
+            classifier.number_of_features
+        ).fill(0);
 
     // Count terms
     const termCounts = {};
 
     for (const term of ngrams) {
 
-        if (tfidf.vocabulary[term] !== undefined) {
+        if (
+            Object.prototype.hasOwnProperty.call(
+                tfidf.vocabulary,
+                term
+            )
+        ) {
 
             termCounts[term] =
                 (termCounts[term] || 0) + 1;
         }
     }
 
-    const totalTerms = ngrams.length;
+    // Calculate TF-IDF
+    for (
+        const [term, count]
+        of Object.entries(termCounts)
+    ) {
 
-    if (totalTerms === 0) {
-        return vector;
-    }
+        const index =
+            tfidf.vocabulary[term];
 
-    // --------------------------------------------------
-    // TF-IDF
-    // --------------------------------------------------
+        let termFrequency;
 
-    for (const [term, count] of Object.entries(
-        termCounts
-    )) {
+        if (tfidf.sublinear_tf) {
 
-        const index = tfidf.vocabulary[term];
+            // Matches sublinear_tf=True
+            termFrequency =
+                1 + Math.log(count);
 
-        const tf =
-            count / totalTerms;
+        } else {
 
-        // sublinear_tf=True
-        const sublinearTf =
-            1 + Math.log(count);
+            termFrequency =
+                count;
+        }
 
         const idf =
             tfidf.idf[index];
 
         vector[index] =
-            sublinearTf * idf;
+            termFrequency * idf;
     }
 
-    // --------------------------------------------------
     // L2 normalization
-    // --------------------------------------------------
+    if (tfidf.norm === "l2") {
 
-    let norm = 0;
+        let norm = 0;
 
-    for (const value of vector) {
-        norm += value * value;
-    }
+        for (const value of vector) {
 
-    norm = Math.sqrt(norm);
+            norm += value * value;
+        }
 
-    if (norm > 0) {
+        norm = Math.sqrt(norm);
 
-        for (let i = 0; i < vector.length; i++) {
-            vector[i] /= norm;
+        if (norm > 0) {
+
+            for (
+                let i = 0;
+                i < vector.length;
+                i++
+            ) {
+
+                vector[i] =
+                    vector[i] / norm;
+            }
         }
     }
 
@@ -145,93 +223,131 @@ function createTfidfVector(text) {
 }
 
 
-// --------------------------------------------------
+// ==========================================================
 // Dot product
-// --------------------------------------------------
+// ==========================================================
 
 function dotProduct(a, b) {
 
     let result = 0;
 
-    for (let i = 0; i < a.length; i++) {
-        result += a[i] * b[i];
+    for (
+        let i = 0;
+        i < a.length;
+        i++
+    ) {
+
+        result +=
+            a[i] * b[i];
     }
 
     return result;
 }
 
 
-// --------------------------------------------------
+// ==========================================================
 // Softmax
-// --------------------------------------------------
+// ==========================================================
 
 function softmax(scores) {
 
-    const maxScore = Math.max(...scores);
+    const maxScore =
+        Math.max(...scores);
 
-    const expScores = scores.map(
-        score => Math.exp(score - maxScore)
-    );
+    const exponentials =
+        scores.map(
+            score =>
+                Math.exp(
+                    score - maxScore
+                )
+        );
 
-    const total = expScores.reduce(
-        (sum, value) => sum + value,
-        0
-    );
+    const total =
+        exponentials.reduce(
+            (sum, value) =>
+                sum + value,
+            0
+        );
 
-    return expScores.map(
-        value => value / total
+    return exponentials.map(
+        value =>
+            value / total
     );
 }
 
 
-// --------------------------------------------------
-// Predict department
-// --------------------------------------------------
+// ==========================================================
+// Classify complaint
+// ==========================================================
 
 function classifyComplaint(text) {
 
-    const vector = createTfidfVector(text);
+    // Convert complaint to TF-IDF vector
+    const vector =
+        createTfidfVector(text);
 
     const scores = [];
 
+    // Calculate score for every department
     for (
         let classIndex = 0;
-        classIndex < classifier.number_of_classes;
+        classIndex <
+        classifier.number_of_classes;
         classIndex++
     ) {
 
         const weights =
-            classifier.coefficients[classIndex];
+            classifier.coefficients[
+                classIndex
+            ];
 
         const bias =
-            classifier.intercepts[classIndex];
+            classifier.intercepts[
+                classIndex
+            ];
 
         const score =
-            dotProduct(vector, weights) + bias;
+            dotProduct(
+                vector,
+                weights
+            ) + bias;
 
         scores.push(score);
     }
 
+    // Convert scores to probabilities
     const probabilities =
         softmax(scores);
 
+    // Find highest probability
     let bestIndex = 0;
 
-    for (let i = 1; i < probabilities.length; i++) {
+    for (
+        let i = 1;
+        i < probabilities.length;
+        i++
+    ) {
 
         if (
             probabilities[i] >
             probabilities[bestIndex]
         ) {
+
             bestIndex = i;
         }
     }
 
     return {
-        department: classifier.classes[bestIndex],
+
+        department:
+            classifier.classes[
+                bestIndex
+            ],
 
         confidence:
-            probabilities[bestIndex],
+            probabilities[
+                bestIndex
+            ],
 
         probabilities:
             classifier.classes.map(
@@ -245,11 +361,10 @@ function classifyComplaint(text) {
 }
 
 
-// --------------------------------------------------
+// ==========================================================
 // Export
-// --------------------------------------------------
+// ==========================================================
 
 module.exports = {
     classifyComplaint
 };
-

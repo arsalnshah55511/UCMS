@@ -1,16 +1,13 @@
-
 const nspell = require("nspell");
 const dictionary = require("dictionary-en");
 
-// NEW: Logistic Regression classifier
 const {
     classifyComplaint
 } = require("../ai/logisticClassifier");
 
 
-
 // ==========================================================
-// Priority Detection
+// Urgent keywords
 // ==========================================================
 
 const urgentKeywords = [
@@ -33,6 +30,10 @@ const urgentKeywords = [
 ];
 
 
+// ==========================================================
+// Priority detection
+// ==========================================================
+
 function detectPriority(text) {
 
     const lowerText =
@@ -40,7 +41,7 @@ function detectPriority(text) {
 
     const isUrgent =
         urgentKeywords.some(
-            (keyword) =>
+            keyword =>
                 lowerText.includes(keyword)
         );
 
@@ -51,72 +52,7 @@ function detectPriority(text) {
 
 
 // ==========================================================
-// Classification Stopwords
-// ==========================================================
-
-const classificationStopwords = new Set([
-    "a",
-    "an",
-    "the",
-    "in",
-    "of",
-    "on",
-    "at",
-    "to",
-    "for",
-    "is",
-    "are",
-    "was",
-    "were",
-    "be",
-    "been",
-    "no",
-    "not",
-    "our",
-    "this",
-    "that",
-    "it",
-    "its",
-    "and",
-    "or",
-    "but",
-    "with",
-    "from",
-    "as",
-    "by",
-    "department",
-    "there",
-    "here",
-    "problem",
-    "issue",
-    "complaint",
-    "please",
-    "repair",
-    "repaired",
-    "fix",
-    "fixed",
-    "resolve",
-    "resolved",
-    "help"
-]);
-
-
-function stripStopwordsForClassification(text) {
-
-    return text
-        .split(/\s+/)
-        .filter(
-            (word) =>
-                !classificationStopwords.has(
-                    word.toLowerCase()
-                )
-        )
-        .join(" ");
-}
-
-
-// ==========================================================
-// Domain-specific words for spell checker
+// University-specific words
 // ==========================================================
 
 const domainWords = [
@@ -133,11 +69,15 @@ const domainWords = [
 ];
 
 
+// ==========================================================
+// Spell checker
+// ==========================================================
+
 let spellChecker = null;
 
 
 // ==========================================================
-// Load Spell Checker
+// Load dictionary
 // ==========================================================
 
 function loadSpellChecker() {
@@ -157,9 +97,8 @@ function loadSpellChecker() {
                         nspell(dict);
 
                     domainWords.forEach(
-                        (word) => {
-                            spell.add(word);
-                        }
+                        word =>
+                            spell.add(word)
                     );
 
                     resolve(spell);
@@ -171,14 +110,14 @@ function loadSpellChecker() {
 
 
 // ==========================================================
-// Confidence Threshold
+// Confidence threshold
 // ==========================================================
 
 const CONFIDENCE_THRESHOLD = 0.4;
 
 
 // ==========================================================
-// Analyze Complaint
+// Analyze complaint
 // ==========================================================
 
 async function analyzeComplaint(
@@ -186,26 +125,25 @@ async function analyzeComplaint(
     originalText
 ) {
 
-    // ------------------------------------------
     // Load spell checker once
-    // ------------------------------------------
-
     if (!spellChecker) {
+
         spellChecker =
             await loadSpellChecker();
     }
 
 
-    // ------------------------------------------
-    // Spell correction
-    // ------------------------------------------
+    // ------------------------------------------------------
+    // Spelling correction
+    // ------------------------------------------------------
 
     function correctText(text) {
 
         let preprocessedText =
             text || "";
 
-        // Common typing shortcuts
+
+        // Common chat abbreviations
         preprocessedText =
             preprocessedText.replace(
                 /\bnt\b/gi,
@@ -219,12 +157,16 @@ async function analyzeComplaint(
             );
 
 
+        // Split text into words
         const words =
-            preprocessedText.split(/\s+/);
+            preprocessedText.split(
+                /\s+/
+            );
 
 
+        // Correct spelling
         const correctedWords =
-            words.map((word) => {
+            words.map(word => {
 
                 const cleanWord =
                     word.replace(
@@ -233,7 +175,9 @@ async function analyzeComplaint(
                     );
 
 
-                if (cleanWord.length === 0) {
+                if (
+                    cleanWord.length === 0
+                ) {
                     return word;
                 }
 
@@ -258,6 +202,7 @@ async function analyzeComplaint(
                 if (
                     suggestions.length > 0
                 ) {
+
                     return suggestions[0];
                 }
 
@@ -270,73 +215,73 @@ async function analyzeComplaint(
     }
 
 
-    // ------------------------------------------
-    // Correct title and complaint
-    // ------------------------------------------
+    // ------------------------------------------------------
+    // Correct complaint text
+    // ------------------------------------------------------
 
     const correctedText =
         correctText(originalText);
+
+
+    // ------------------------------------------------------
+    // Correct title
+    // ------------------------------------------------------
 
     const correctedTitle =
         correctText(title);
 
 
-    // ------------------------------------------
-    // Combine title + complaint
-    // ------------------------------------------
+    // ------------------------------------------------------
+    // Combine title and complaint
+    // ------------------------------------------------------
 
     const combinedText =
         `${correctedTitle} ${correctedText}`;
 
 
-    // ------------------------------------------
+    // ------------------------------------------------------
     // Detect priority
-    // ------------------------------------------
+    // ------------------------------------------------------
 
     const priority =
-        detectPriority(combinedText);
-
-
-    // ------------------------------------------
-    // Prepare classification text
-    // ------------------------------------------
-
-    const classificationInput =
-        stripStopwordsForClassification(
+        detectPriority(
             combinedText
         );
 
 
-    // ------------------------------------------
-    // Logistic Regression prediction
-    // ------------------------------------------
+    // ------------------------------------------------------
+    // ML classification
+    //
+    // Stopword removal is handled inside
+    // logisticClassifier.js using the same
+    // stopword list exported from Python.
+    // ------------------------------------------------------
 
     const classification =
         classifyComplaint(
-            classificationInput
+            combinedText
         );
 
 
     const department =
         classification.department;
 
-
     const confidence =
         classification.confidence;
 
 
-    // ------------------------------------------
-    // Determine review status
-    // ------------------------------------------
+    // ------------------------------------------------------
+    // Confidence check
+    // ------------------------------------------------------
 
     const requiresReview =
         confidence <
         CONFIDENCE_THRESHOLD;
 
 
-    // ------------------------------------------
-    // Return AI analysis
-    // ------------------------------------------
+    // ------------------------------------------------------
+    // Return result
+    // ------------------------------------------------------
 
     return {
 
@@ -354,13 +299,10 @@ async function analyzeComplaint(
 
 
 // ==========================================================
-// Exports
+// Export
 // ==========================================================
 
 module.exports = {
-
     analyzeComplaint,
-
     CONFIDENCE_THRESHOLD
 };
-

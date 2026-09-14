@@ -1,26 +1,25 @@
-
 import json
 import joblib
 import os
 
+
 MODEL_PATH = "model/ucms_logistic_regression.joblib"
 OUTPUT_PATH = "model/ucms_model.json"
 
-# --------------------------------------------------
-# Load trained model
-# --------------------------------------------------
 
 print("Loading trained model...")
 
-pipeline = joblib.load(MODEL_PATH)
+pipeline = joblib.load(
+    MODEL_PATH
+)
 
 tfidf = pipeline.named_steps["tfidf"]
 classifier = pipeline.named_steps["classifier"]
 
 
-# --------------------------------------------------
-# Convert vocabulary to normal Python integers
-# --------------------------------------------------
+# ==========================================================
+# Vocabulary
+# ==========================================================
 
 vocabulary = {
     str(term): int(index)
@@ -28,9 +27,9 @@ vocabulary = {
 }
 
 
-# --------------------------------------------------
-# TF-IDF information
-# --------------------------------------------------
+# ==========================================================
+# IDF
+# ==========================================================
 
 idf = [
     float(value)
@@ -38,14 +37,29 @@ idf = [
 ]
 
 
-# --------------------------------------------------
-# Logistic Regression information
-# --------------------------------------------------
+# ==========================================================
+# Stopwords
+# ==========================================================
+
+stop_words = sorted(
+    str(word)
+    for word in tfidf.get_stop_words()
+)
+
+
+# ==========================================================
+# Classes
+# ==========================================================
 
 classes = [
     str(value)
     for value in classifier.classes_
 ]
+
+
+# ==========================================================
+# Coefficients
+# ==========================================================
 
 coefficients = [
     [
@@ -55,15 +69,20 @@ coefficients = [
     for row in classifier.coef_
 ]
 
+
+# ==========================================================
+# Intercepts
+# ==========================================================
+
 intercepts = [
     float(value)
     for value in classifier.intercept_
 ]
 
 
-# --------------------------------------------------
-# Create JSON-compatible model
-# --------------------------------------------------
+# ==========================================================
+# Export model
+# ==========================================================
 
 exported_model = {
 
@@ -77,14 +96,18 @@ exported_model = {
 
         "idf": idf,
 
+        "stop_words": stop_words,
+
         "ngram_range": [
             int(tfidf.ngram_range[0]),
             int(tfidf.ngram_range[1])
         ],
 
-        "lowercase": bool(tfidf.lowercase),
+        "lowercase":
+            bool(tfidf.lowercase),
 
-        "sublinear_tf": bool(tfidf.sublinear_tf),
+        "sublinear_tf":
+            bool(tfidf.sublinear_tf),
 
         "max_features": (
             int(tfidf.max_features)
@@ -102,7 +125,13 @@ exported_model = {
             int(tfidf.max_df)
             if isinstance(tfidf.max_df, int)
             else float(tfidf.max_df)
-        )
+        ),
+
+        "token_pattern":
+            tfidf.token_pattern,
+
+        "norm":
+            tfidf.norm
     },
 
     "classifier": {
@@ -113,21 +142,24 @@ exported_model = {
 
         "intercepts": intercepts,
 
-        "number_of_classes": len(classes),
+        "number_of_classes":
+            len(classes),
 
-        "number_of_features": len(vocabulary)
+        "number_of_features":
+            len(vocabulary)
     }
 }
 
 
-# --------------------------------------------------
-# Save model
-# --------------------------------------------------
+# ==========================================================
+# Save JSON
+# ==========================================================
 
 os.makedirs(
     os.path.dirname(OUTPUT_PATH),
     exist_ok=True
 )
+
 
 with open(
     OUTPUT_PATH,
@@ -143,9 +175,9 @@ with open(
     )
 
 
-# --------------------------------------------------
-# Verify JSON
-# --------------------------------------------------
+# ==========================================================
+# Validate JSON
+# ==========================================================
 
 with open(
     OUTPUT_PATH,
@@ -160,8 +192,9 @@ print("\n======================================")
 print("MODEL EXPORT COMPLETED")
 print("======================================")
 
-print(f"Classes: {classes}")
-print(f"Features: {len(vocabulary)}")
-print(f"Output: {OUTPUT_PATH}")
-print("\n✓ JSON validation successful.")
+print(f"Classes  : {classes}")
+print(f"Features : {len(vocabulary)}")
+print(f"Stopwords: {len(stop_words)}")
+print(f"Output   : {OUTPUT_PATH}")
 
+print("\n✓ JSON validation successful.")

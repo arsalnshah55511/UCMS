@@ -38,7 +38,7 @@ const buildScopeFilter =  (user)=>{
  */
 
 const createComplaint = asyncHandler(async (req, res) => {
- console.log("heyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
+ 
     const { title, originalText } = req.body;
 
    const image = req.file ? req.file.path : null;
