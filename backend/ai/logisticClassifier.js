@@ -1,3 +1,4 @@
+
 const fs = require("fs");
 const path = require("path");
 
@@ -16,6 +17,15 @@ const model = JSON.parse(
 
 const tfidf = model.feature_extraction;
 const classifier = model.classifier;
+
+
+// ==========================================================
+// Confidence Threshold
+// ==========================================================
+
+// If confidence is below 40%,
+// the complaint requires manual routing.
+const CONFIDENCE_THRESHOLD = 0.4;
 
 
 // ==========================================================
@@ -337,18 +347,30 @@ function classifyComplaint(text) {
         }
     }
 
+    // Highest probability is the confidence
+    const confidence =
+        probabilities[bestIndex];
+
+    // Check whether manual routing is required
+    const requiresReview =
+        confidence < CONFIDENCE_THRESHOLD;
+
     return {
 
+        // Predicted department
         department:
             classifier.classes[
                 bestIndex
             ],
 
-        confidence:
-            probabilities[
-                bestIndex
-            ],
+        // Confidence of prediction
+        confidence,
 
+        // True when confidence is below 40%
+        // and backend should use manual routing.
+        requiresReview,
+
+        // Probability of every department
         probabilities:
             classifier.classes.map(
                 (department, index) => ({
@@ -366,5 +388,7 @@ function classifyComplaint(text) {
 // ==========================================================
 
 module.exports = {
-    classifyComplaint
+    classifyComplaint,
+    CONFIDENCE_THRESHOLD
 };
+
