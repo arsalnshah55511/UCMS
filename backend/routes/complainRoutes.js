@@ -16,12 +16,14 @@ const {
   getFeedback,
   reopenComplaint,
   deleteComplaint,
+  getComplaintPdf,
 } = require("../controllers/complainController");
 
  const upload = require("../middleware/uploads")
+ // First authentication and then authorization. The order matters because `authorize` needs `req.user` to be populated by `protect`.
  router.post(
     "/",
-    protect,
+    protect,                  
     authorize(ROLES.STUDENT, ROLES.FACULTY),
     upload.single("image"),
     createComplaint
@@ -36,6 +38,7 @@ router.get("/", protect, getComplaints);
 
 
 router.get("/insights", protect, authorize(ROLES.VC), getInsights);
+router.get("/:id/pdf", protect, getComplaintPdf);
 
 // IMPORTANT: both bulk routes must be declared BEFORE "/:id/status" and
 // "/:id/department" below. Both pairs have the same two-segment shape

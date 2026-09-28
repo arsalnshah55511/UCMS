@@ -48,7 +48,7 @@ export default function Register() {
     <div className="flex justify-center items-center min-h-screen bg-gray-100 px-4 py-8">
       <div className="w-full max-w-lg bg-white shadow-lg rounded-xl p-8">
 
-        <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">
+        <h1 className="text-3xl font-bold text-center text-red-800 mb-2">
           Create Account
         </h1>
 

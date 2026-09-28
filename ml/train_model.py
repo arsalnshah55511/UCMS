@@ -95,7 +95,7 @@ tfidf = TfidfVectorizer(
 classifier = LogisticRegression(
     max_iter=1000,
     C=2.0,
-    solver="lbfgs",
+    solver="saga",
     random_state=42
 )
 

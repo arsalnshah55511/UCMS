@@ -7,7 +7,7 @@ from pathlib import Path
 # Configuration
 # --------------------------------------------------
 
-DATASET_PATH = "dataset/ucms_complaints_updated.csv"
+DATASET_PATH = "dataset/new_complaints.csv"
 
 TRAIN_PATH = "dataset/train.csv"
 TEST_PATH = "dataset/test.csv"
@@ -21,15 +21,15 @@ DEPARTMENTS = [
 ]
 
 # Expected final dataset
-EXPECTED_TOTAL = 12500
-EXPECTED_PER_DEPARTMENT = 2500
+EXPECTED_TOTAL = 1_000_000
+EXPECTED_PER_DEPARTMENT = 200_000
 
 # Expected 80/20 split
-EXPECTED_TRAIN = 10000
-EXPECTED_TEST = 2500
+EXPECTED_TRAIN = 800_000
+EXPECTED_TEST = 200_000
 
-EXPECTED_TRAIN_PER_DEPARTMENT = 2000
-EXPECTED_TEST_PER_DEPARTMENT = 500
+EXPECTED_TRAIN_PER_DEPARTMENT = 160_000
+EXPECTED_TEST_PER_DEPARTMENT = 40_000
 
 
 # --------------------------------------------------

@@ -12,6 +12,8 @@ const {
   COMPLAINT_STATUS_LIST,
 } = require("../config/roles")
 const Feedback = require("../models/Feedback")
+const mongoose = require("mongoose");
+const { generateComplaintPdf, shortId } = require("../services/Pdfservice");
 
 /**
  * Builds the MongoDB filter that scopes which complaints a given user
@@ -620,6 +622,74 @@ const deleteComplaint = asyncHandler(async (req, res) => {
     });
 
 });
+/**
+ * @desc    Download a complaint as a PDF
+ * @route   GET /api/complain/:id/pdf
+ * @access  Private (submitter of the complaint, staff of the complaint's
+ *          department, or VC)
+ *
+ * Errors are answered directly as JSON so the frontend always gets a
+ * clean message and no internal details leak out.
+ */
+const getComplaintPdf = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // 1. Invalid ID
+        if (!mongoose.isValidObjectId(id)) {
+            return res.status(400).json({ success: false, message: "Invalid complaint ID" });
+        }
+
+        // 2. Fetch complaint with the related info the PDF needs
+        const complaint = await Complaint.findById(id)
+            .populate("submittedBy", "name email role rollNumber")
+            .populate("assignedTo", "name email role")
+            .populate("history.changedBy", "name role");
+
+        if (!complaint) {
+            return res.status(404).json({ success: false, message: "Complaint not found" });
+        }
+
+        // 3. Authorization (role-aware, stricter than a plain department match)
+        const user = req.user;
+        const submitterId = complaint.submittedBy?._id?.toString();
+        let allowed = false;
+
+        if (user.role === ROLES.VC) {
+            allowed = true;
+        } else if (user.role === ROLES.STUDENT || user.role === ROLES.FACULTY) {
+            allowed = submitterId === user._id.toString();
+        } else {
+            // hod / admin_office / provost: own department only
+            allowed = !!user.department && complaint.department === user.department;
+        }
+
+        if (!allowed) {
+            return res.status(403).json({
+                success: false,
+                message: "Not authorized to download this complaint",
+            });
+        }
+
+        // 4. Generate PDF
+        const pdfBuffer = await generateComplaintPdf(complaint, user.role);
+
+        // 5. Send as a download
+        res.set({
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename="UCMS_Complaint_${shortId(complaint)}.pdf"`,
+            "Content-Length": pdfBuffer.length,
+            "Cache-Control": "no-store",
+        });
+        return res.send(pdfBuffer);
+    } catch (error) {
+        console.error("PDF generation error:", error.message);
+        return res.status(500).json({
+            success: false,
+            message: "Could not generate the PDF. Please try again later.",
+        });
+    }
+};
 
 
 module.exports = {
@@ -641,7 +711,8 @@ module.exports = {
     submitFeedback,
     getFeedback,
     reopenComplaint,
-    deleteComplaint
+    deleteComplaint,
+    getComplaintPdf
 
     
 };

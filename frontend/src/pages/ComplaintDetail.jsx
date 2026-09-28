@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import RoutingStamp from "../components/RoutingStamp";
 import StatusBadge from "../components/StatusBadge";
 import Spinner from "../components/Spinner";
+import DownloadPdfButton from "../components/DownloadPdfButton";
 
 import { COMPLAINT_STATUS_LIST, DEPARTMENTS } from "../utils/constants";
 
@@ -277,13 +278,20 @@ export default function ComplaintDetail() {
                 </div>
               </div>
 
-              <StatusBadge status={complaint.status} />
+              <div className="flex shrink-0 flex-col items-end gap-2">
+                <StatusBadge status={complaint.status} />
+                <DownloadPdfButton
+                  endpoint={`/api/complain/${complaint._id}/pdf`}
+                  fileName={`UCMS_Complaint_${complaint._id.slice(-6).toUpperCase()}.pdf`}
+                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-amber-400 hover:text-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+              </div>
             </div>
 
             <div className="mb-6 grid grid-cols-1 gap-5 border-t border-slate-100 pt-5 md:grid-cols-2">
               <div>
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Department
+                 Assigned to Department
                 </h3>
                 <p className="mt-1 text-slate-800">{complaint.department}</p>
               </div>
